@@ -6,10 +6,14 @@ Pure functions only!
 import re
 from operator import attrgetter
 from collections import namedtuple
-from collections import defaultdict, namedtuple
+from collections import namedtuple
+from meme import mk_multidict, mapvals, list_subtract
 MapInfo = namedtuple('MapInfo',['mapname','version','modified','size'])# We *might* want to change this into a class
 #note: remote and local sizes will be different since remote files are compressed!
 #also, sizes are approximate since we are just parsing the apache file listing which gives us the size in MBs
+
+def weak_eq_mapinfo(a,b):
+    return a.mapname == b.mapname and a.version == b.version
 
 # examples                ex zs_18       _v2b           _2018           _2018_a2                _a2_3
 versionformat = re.compile("(?<!zs)_(?:v?[0-9]+[a-z]?|(?:20[0-9]{2})(?:_[a-z][0-9])?|(?:[a-z][0-9])(?:_[0-9])?)$") #big suffer
@@ -38,19 +42,20 @@ def strip_extension(filename):
             return filename[:-len(e)]
     raise ValueError(f"map {filename} doesn't end with any of {map_exts}")
 
-def mk_multidict(keyfun, xs):
-    """Returns a dict d such that for every k, d[k] is the set of xs with keyfun(x) equal to k."""
-    ret = defaultdict(set)
-    for x in xs: #no obvious way to do this in functional style
-        ret[keyfun(x)].add(x)
-    return ret
-
-def mapvals(f, dct):
-    """Apply f to values of dict and return the result dict (keys stay the same)."""
-    return {k: f(v) for k, v in dct.items()}
-
 MapUpgrade = namedtuple('MapUpgrade', ['old', 'new'])
 def make_upgrade(local, remote, x):
+    """Find the map with name x in local and remote and construct an upgrade."""
     r = remote[x]
     l = local[x] if x in local else None
     return MapUpgrade(l,r)
+
+def list_outdated(local, remote):
+    """Compare local and remote versions of maps and return a list of possible updates"""
+
+    def is_outdated(mapinfo):
+        mapname = mapinfo.mapname
+        return mapname not in local or local[mapname].modified < remote[mapname].modified
+    return [m.mapname for m in remote.values() if is_outdated(m)] #map(adfsa, filter(is_outdated, remote.values()))
+
+def list_orphans(local, remote): #maybe there should be a class for (local, remote) pairs?
+    return list_subtract(local,remote, weak_eq_mapinfo)

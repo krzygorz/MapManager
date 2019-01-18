@@ -1,0 +1,55 @@
+"""
+Trying to do functional programming in python was a bad idea...
+"""
+
+from operator import eq
+from collections import defaultdict
+
+def find_first(pred, l):
+    """Return the first element of the list l that satisfies the predictate pred or return None if couldnt find one"""
+    return next(filter(pred, l), None)
+
+def id(x):
+    """Identity function."""
+    return x
+
+def filter_none(xs):
+    """returns the list with Nones (and Falses) filtered out"""
+    return filter(id, xs)
+
+def half_curry(f, x):# poor man's currying
+    return lambda y: f(x,y)
+
+# def list_intersect(xs, ys, eq1=eq):
+#     """Return the intersection of two lists. Can take a custom equivalence relation."""
+#     def f(x): # no haskell = suffer
+#         c_eq = half_curry(eq1, x)
+#         return find_first(c_eq,ys)
+#     return filter_none(map(f, xs))
+
+def list_subtract(xs,ys,eq1=eq):
+    """Subtracts two lists. Can take a custom equivalence relation."""
+    def f(x):
+        c_eq = half_curry(eq1, x)
+        found = find_first(c_eq,ys)
+        return False if found else x
+    return filter_none(map(f, xs))
+
+def mk_multidict(keyfun, xs):
+    """Returns a dict d such that for every k, d[k] is the set of xs with keyfun(x) equal to k."""
+    ret = defaultdict(set)
+    for x in xs: #no obvious way to do this in functional style
+        ret[keyfun(x)].add(x)
+    return ret
+
+def mapvals(f, dct):
+    """Apply f to values of dict and return the result dict (keys stay the same)."""
+    return {k: f(v) for k, v in dct.items()}
+
+def lmap(f, xs):
+    """list(map(f,xs)) - for when the map has to be reused or when we want to force side effects"""
+    return list(map(f,xs))
+
+def lfilter(f, xs):
+    """list(filter(f,xs)) - for when the filter has to be reused or when we want to force side effects"""
+    return list(filter(f,xs))
