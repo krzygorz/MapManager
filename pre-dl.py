@@ -1,6 +1,8 @@
 import htmllistparse
 import time
 import os
+import sys
+import signal
 from collections import defaultdict, namedtuple
 from urllib.request import urlopen
 from operator import attrgetter
@@ -80,13 +82,6 @@ def mapinfo_filename(mapinfo):
 
 MapUpgrade = namedtuple('MapUpgrade', ['old', 'new'])
 
-def upgrade_all(upgrades):
-    for u in upgrades:
-        filename = mapinfo_filename(u.old)
-        print('downloading '+filename) #TODO: progress bar with ETA, summary before download start
-        with urlopen(url+filename) as response, open('fake-mapdir/'+filename, 'wb') as f:
-            f.write(response.read())
-
 def mb_fmt(x):
     factor = 1024*1024
     mbs = round(x/factor)
@@ -100,30 +95,69 @@ def truncate(s, n):
 
 def upgrade_sumary(upgrades):
     max_name_len = 30
-    fmt_exists = "{name} : {v1} ({s1}) -> {v2} ({s2})"
-    fmt_new = "NEW: {name: <{max}} : {v2: <10} ({s2})"
+    fmt_exists = "{name: <{max}} {v: <10} {d1: <10} ({s1}) -> ({s2})"
+    fmt_new    = "{name: <{max}} {v: <10} {d1: <10} ({s2}) NEW"
     
-
     for u in upgrades:
         old = u.old
         new = u.new
         mapname = truncate(new.mapname, max_name_len)
         v_old = old.version if old and old.version else "???"
         v_new = new.version if new.version else "???"
+
+        date_new = time.strftime('%x', time.gmtime(u.new.modified))
         if old:
             print(fmt_exists.format(name = mapname,
                                     max  = max_name_len+2,
-                                    v1   = v_old,
-                                    v2   = v_new,
+                                    v    = "{} -> {}".format(v_old, v_new),
                                     s1   = mb_fmt(old.size),
-                                    s2   = mb_fmt(new.size)))
+                                    s2   = mb_fmt(new.size),
+                                    d1   = date_new))
         else:
             print(fmt_new.format(name = mapname,
                                  max  = max_name_len+2,
-                                 v2   = v_new,
-                                 s2   = mb_fmt(new.size)))
+                                 v   = v_new,
+                                 s2   = mb_fmt(new.size),
+                                 d1   = date_new))
     print()
     print("total download size: ", mb_fmt(sum([u.new.size for u in upgrades])))
+
+def download(response, name, chunk_size=8192):  #adapted from https://stackoverflow.com/a/2030027
+    total_size = response.getheader('Content-Length').strip()
+    total_size = int(total_size)
+    bytes_so_far = 0
+    time_start = time.time()
+    data = b""
+
+    while True:
+        chunk = response.read(chunk_size)
+        bytes_so_far += len(chunk)
+        elapsed = time.time()-time_start
+        speed = bytes_so_far/elapsed
+
+        if not chunk:
+             break
+
+        data += chunk
+        percent = float(bytes_so_far) / total_size
+        percent = round(percent*100, 2)
+        sys.stdout.write("{} - Downloaded {}b of {}b ({:0.2f}%)   avg speed: {:0.2f} Kb/s   ETA: {}s       \r".format(name, mb_fmt(bytes_so_far), mb_fmt(total_size), percent, speed/1024, round(total_size/speed-elapsed)))
+
+        if bytes_so_far >= total_size:
+            sys.stdout.write('\n')
+
+    return data
+
+writing = False
+def upgrade_all(upgrades):
+    for u in upgrades:
+        filename = mapinfo_filename(u.new)
+        with urlopen(url+filename) as response:
+            data = download(response, u.new.mapname)
+            writing = True
+            with open('fake-mapdir/'+filename, 'wb') as f:
+                f.write(data)
+                writing = False # should this be in a finally block? 
 
 
 localfiles = os.listdir(mapsdir)
@@ -131,11 +165,16 @@ local_mapinfo = list(map(read_local_mapinfo, localfiles)) #read_local_mapinfo is
 
 cwd, listing = htmllistparse.fetch_listing(url, timeout=30)
 listing = filter(should_check, listing)
+listing = sorted(listing, key=attrgetter('modified'), reverse=True)
 listing = map(parse_remote_mapinfo, listing)
 
 fresh_remote = newest_versions(listing)
 fresh_local = newest_versions(local_mapinfo)
 outdated = list_outdated(fresh_local, fresh_remote)
+
+if len(outdated) == 0:
+    print("Everything is up to date!")
+    sys.exit(0)
 
 def make_upgrade(local, remote, x):
     r = remote[x]
@@ -147,3 +186,14 @@ def make_upgrade(local, remote, x):
 
 upgrades = [make_upgrade(fresh_local, fresh_remote, x) for x in outdated]
 upgrade_sumary(upgrades)
+
+def signal_handler(sig, frame):
+    print()# avoid the \r
+    if writing:
+        print('DOWNLOAD INTERRUPTED WHILE WRITING TO DISK!')
+        print("Since currently pre-dl uses file modification date to compare version, there is a chance that the file was only partially written and next time you run pre-dl it will think it's up to date")
+        print("you might want to check the file size manually")
+    sys.exit(0)
+signal.signal(signal.SIGINT, signal_handler)
+
+upgrade_all(upgrades)
