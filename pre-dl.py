@@ -3,11 +3,11 @@ import time
 import os
 import sys
 import signal
-from collections import defaultdict, namedtuple
+
 from urllib.request import urlopen
 from operator import attrgetter
-
-from mapinfo import MapInfo, parse_version
+from collections import namedtuple
+from mapinfo import MapInfo, parse_version, strip_extension, newest_versions, make_upgrade
 from test import testmaps, testmaps_parsed
 
 url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
@@ -25,31 +25,6 @@ def is_zs_map(mapname):
 
 def should_check(x):
     return x.size >= minsize and x.modified >= mindate and is_zs_map(x.name)
-
-map_exts = ['.bsp.bz2','.bsp']
-def strip_extension(filename):
-    for e in map_exts:
-        if filename.endswith(e):
-            return filename[:-len(e)]
-    raise ValueError(f"map {filename} doesn't end with any of {map_exts}")
-
-def mk_multidict(keyfun, xs):
-    """Returns a dict d such that for every k, d[k] is the set of xs with keyfun(x) equal to k."""
-    ret = defaultdict(set)
-    for x in xs: #no obvious way to do this in functional style
-        ret[keyfun(x)].add(x)
-    return ret
-
-def mapvals(f, dct):
-    """Apply f to values of dict and return the result dict (keys stay the same)."""
-    return {k: f(v) for k, v in dct.items()}
-def bestversion(xs):
-    """Return the MapInfo with newer version (modification date)."""
-    return max(xs,key = attrgetter('modified'))
-def newest_versions(listing):
-    """Given a MapInfo list return a dictionary d associating every map name with MapInfo of the newest version of that map."""
-    mapversions = mk_multidict(attrgetter('mapname'), listing)
-    return mapvals(bestversion, mapversions)
 
 def read_local_mapinfo(filename):
     """Make a MapInfo based on file metadata. filename is relative to the maps directory."""
@@ -79,8 +54,6 @@ def mapinfo_filename(mapinfo):
     if mapinfo.version is not None:
         mapname+='_'+mapinfo.version
     return mapname+'.bsp.bz2'
-
-MapUpgrade = namedtuple('MapUpgrade', ['old', 'new'])
 
 def mb_fmt(x):
     factor = 1024*1024
@@ -150,6 +123,7 @@ def download(response, name, chunk_size=8192):  #adapted from https://stackoverf
 
 writing = False
 def upgrade_all(upgrades):
+    global writing
     for u in upgrades:
         filename = mapinfo_filename(u.new)
         with urlopen(url+filename) as response:
@@ -175,14 +149,6 @@ outdated = list_outdated(fresh_local, fresh_remote)
 if len(outdated) == 0:
     print("Everything is up to date!")
     sys.exit(0)
-
-def make_upgrade(local, remote, x):
-    r = remote[x]
-    if x in local:
-        l = local[x]
-    else:
-        l = None
-    return MapUpgrade(l,r)
 
 upgrades = [make_upgrade(fresh_local, fresh_remote, x) for x in outdated]
 upgrade_sumary(upgrades)
