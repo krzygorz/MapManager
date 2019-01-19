@@ -7,9 +7,9 @@ import signal
 from urllib.request import urlopen
 from operator import attrgetter
 from collections import namedtuple
-from mapinfo import MapInfo, parse_version, strip_extension, newest_versions, make_upgrade, list_orphans, list_outdated
+from mapinfo import MapInfo, parse_version, newest_versions, make_upgrade, list_orphans, list_outdated
 from test import testmaps, testmaps_parsed
-from meme import lmap, lfilter
+from meme import lmap, lfilter, filter_none
 
 url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
 
@@ -29,10 +29,20 @@ def is_zs_map(mapinfo):
 def should_check(x):
     return x.size >= minsize and x.modified >= mindate and is_zs_map(x)
 
+map_exts = ['.bsp.bz2','.bsp']
+def strip_extension(filename):
+    for e in map_exts:
+        if filename.endswith(e):
+            return filename[:-len(e)]
+    return None
+
 def read_local_mapinfo(filename):
     """Make a MapInfo based on file metadata. filename is relative to the maps directory."""
-    mapname, version = parse_version(strip_extension(filename))
+    rawname = strip_extension(filename)
+    if not rawname: 
+        return None
 
+    mapname, version = parse_version(rawname)
     fullpath = os.path.join(mapsdir,filename)
     mtime = os.path.getmtime(fullpath)
     size = os.path.getsize(fullpath)
@@ -186,6 +196,7 @@ def query_yes_no(question, default="yes"):# http://code.activestate.com/recipes/
 
 localfiles = os.listdir(mapsdir)
 local_mapinfo = lmap(read_local_mapinfo, localfiles)
+local_mapinfo = list(filter_none(local_mapinfo))# filter out Nones from non-bsp files
 local_mapinfo = lfilter(is_zs_map, local_mapinfo)
 
 cwd, listing = htmllistparse.fetch_listing(url, timeout=30)

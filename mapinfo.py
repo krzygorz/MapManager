@@ -35,13 +35,6 @@ def newest_versions(listing):
     mapversions = mk_multidict(attrgetter('mapname'), listing)
     return mapvals(bestversion, mapversions)
 
-map_exts = ['.bsp.bz2','.bsp']
-def strip_extension(filename):
-    for e in map_exts:
-        if filename.endswith(e):
-            return filename[:-len(e)]
-    raise ValueError(f"map {filename} doesn't end with any of {map_exts}")
-
 MapUpgrade = namedtuple('MapUpgrade', ['old', 'new'])
 def make_upgrade(local, remote, x):
     """Find the map with name x in local and remote and construct an upgrade."""
