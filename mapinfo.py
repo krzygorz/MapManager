@@ -8,7 +8,7 @@ from operator import attrgetter
 from collections import namedtuple
 from collections import namedtuple
 from meme import mk_multidict, mapvals, list_subtract
-MapInfo = namedtuple('MapInfo',['mapname','version','modified','size'])# We *might* want to change this into a class
+MapInfo = namedtuple('MapInfo',['mapname','version','modified','size','ext'])# We *might* want to change this into a class
 #note: remote and local sizes will be different since remote files are compressed!
 #also, sizes are approximate since we are just parsing the apache file listing which gives us the size in MBs
 
@@ -27,7 +27,7 @@ def parse_version(mapname):
         version = mapname[version_pos+1:] # +1 to remove the underscore
         return (mapname_pure, version)
 
-def bestversion(xs):
+def bestversion(xs):# TODO: compare by version?
     """Return the MapInfo with newer version (modification date)."""
     return max(xs,key = attrgetter('modified'))
 def newest_versions(listing):
@@ -50,5 +50,5 @@ def list_outdated(local, remote):
         return mapname not in local or local[mapname].modified < remote[mapname].modified
     return [m.mapname for m in remote.values() if is_outdated(m)] #map(adfsa, filter(is_outdated, remote.values()))
 
-def list_orphans(local, remote): #maybe there should be a class for (local, remote) pairs?
+def list_orphans(local, remote): #maybe there should be a class/namedtuple for (local, remote) pairs?
     return list_subtract(local,remote, weak_eq_mapinfo)

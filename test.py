@@ -7,6 +7,6 @@ testmaps_noext = ['zs_raccooncitystreets', 'zs_obj_e_girl_e_quest_v1e', 'zs_arct
 
 def f(x):
     mapname, version = parse_version(x)
-    return MapInfo(mapname, version, time.strptime("01 Nov 1999", "%d %b %Y"), 12345)
+    return MapInfo(mapname, version, time.strptime("01 Nov 1999", "%d %b %Y"), 12345, '.bsp')
 
 testmaps_parsed = list(map(f,testmaps_noext))

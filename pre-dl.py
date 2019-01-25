@@ -30,15 +30,15 @@ def should_check(x):
     return x.size >= minsize and x.modified >= mindate and is_zs_map(x)
 
 map_exts = ['.bsp.bz2','.bsp']
-def strip_extension(filename):
+def split_extension(filename):
     for e in map_exts:
         if filename.endswith(e):
-            return filename[:-len(e)]
-    return None
+            return filename[:-len(e)], e
+    return None, None
 
 def read_local_mapinfo(filename):
     """Make a MapInfo based on file metadata. filename is relative to the maps directory."""
-    rawname = strip_extension(filename)
+    rawname, ext = split_extension(filename)
     if not rawname: 
         return None
 
@@ -46,19 +46,23 @@ def read_local_mapinfo(filename):
     fullpath = os.path.join(mapsdir,filename)
     mtime = os.path.getmtime(fullpath)
     size = os.path.getsize(fullpath)
-    return MapInfo(mapname, version, mtime, size)
+    return MapInfo(mapname, version, mtime, size, ext)
 def parse_remote_mapinfo(entry):
     """Make a MapInfo based on FileEntry metadata."""
-    mapname, version = parse_version(strip_extension(entry.name))
+    rawname, ext = split_extension(entry.name)
+    if not rawname: 
+        return None
+    
+    mapname, version = parse_version(rawname)
     mtime = time.mktime(entry.modified)
-    return MapInfo(mapname, version, mtime, entry.size)
+    return MapInfo(mapname, version, mtime, entry.size, ext)
 
 def mapinfo_filename(mapinfo):
     """Recover map filename given a MapInfo"""
     mapname = mapinfo.mapname
     if mapinfo.version is not None:
         mapname+='_'+mapinfo.version
-    return mapname+'.bsp.bz2'
+    return mapname+mapinfo.ext
 
 def mb_fmt(x):
     """Given a size in bytes returns a string that says the size in MBs"""
@@ -147,17 +151,16 @@ def download(response, name, chunk_size=8192):  #adapted from https://stackoverf
     return data
 
 writing = False
-def upgrade_all(upgrades):
-    """Given a list of available upgrades download them and write them to disk."""
+def upgrade(u):
+    """downloads an upgrade and writes it to disk."""
     global writing
-    for u in upgrades:
-        filename = mapinfo_filename(u.new)
-        with urlopen(url+filename) as response:
-            data = download(response, u.new.mapname)
-            writing = True
-            with open(os.path.join(mapsdir,filename), 'wb') as f:
-                f.write(data)
-                writing = False # should this be in a finally block?
+    filename = mapinfo_filename(u.new)
+    with urlopen(url+filename) as response:
+        data = download(response, u.new.mapname)
+        writing = True
+        with open(os.path.join(mapsdir,filename), 'wb') as f:
+            f.write(data)
+            writing = False # should this be in a finally block?
 
 def remove_map(mapinfo):
     os.remove(os.path.join(mapsdir,mapinfo_filename(mapinfo)))
@@ -220,27 +223,27 @@ def signal_handler(sig, frame):
     sys.exit(0)
 signal.signal(signal.SIGINT, signal_handler)
 
-noop = True
-
-if len(upgrades) > 0:
-    upgrade_sumary(upgrades)
-    if query_yes_no("continue upgrade?"):
-        noop = False
-        upgrade_all(upgrades)
+def forall_prompt(action, xs, summary, prompt, cancelmsg, donemsg="Done!"):
+    if len(xs) > 0:
+        summary(xs)
+        if query_yes_no(prompt):
+            for x in xs:
+                action(x)
+            print(donemsg)
+            return True
+        else:
+            print(cancelmsg)
+            return False
     else:
-        print("upgrade cancelled.")
+        return False
+
+
+active = False
+active = forall_prompt(upgrade, upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!") or active
 
 orphans = list(list_orphans(local_mapinfo, remote_mapinfo))
-if len(orphans) > 0:
-    print()
-    orphans_summary(orphans)
-    if query_yes_no("remove orphans?"):
-        noop = False
-        for o in orphans:
-            remove_map(o)
-        print("done!")
-    else:
-        print("no orphans deleted.")
 
-if noop:
+active = forall_prompt(remove_map, orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.") or active
+
+if not active:
     print("Nothing to do!")
