@@ -9,13 +9,9 @@ def find_first(pred, l):
     """Return the first element of the list l that satisfies the predictate pred or return None if couldnt find one"""
     return next(filter(pred, l), None)
 
-def id(x):
-    """Identity function."""
-    return x
-
 def filter_none(xs):
     """returns the list with Nones (and Falses) filtered out"""
-    return filter(id, xs)
+    return [x for x in xs if x]
 
 def half_curry(f, x):# poor man's currying
     return lambda y: f(x,y)
@@ -42,11 +38,11 @@ def mk_multidict(keyfun, xs):
         ret[keyfun(x)].add(x)
     return ret
 
-def mapvals(f, dct):
+def mapvalues(f, dct):
     """Apply f to values of dict and return the result dict (keys stay the same)."""
     return {k: f(v) for k, v in dct.items()}
 
-def lmap(f, xs):
+def lmap(f, xs): #FIXME: this is retarded
     """list(map(f,xs)) - for when the map has to be reused or when we want to force side effects"""
     return list(map(f,xs))
 

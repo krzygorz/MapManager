@@ -7,7 +7,7 @@ import re
 from operator import attrgetter
 from collections import namedtuple
 from collections import namedtuple
-from meme import mk_multidict, mapvals, list_subtract
+from meme import mk_multidict, mapvalues, list_subtract
 MapInfo = namedtuple('MapInfo',['mapname','version','modified','size','ext'])# We *might* want to change this into a class
 #note: remote and local sizes will be different since remote files are compressed!
 #also, sizes are approximate since we are just parsing the apache file listing which gives us the size in MBs
@@ -33,7 +33,7 @@ def bestversion(xs):# TODO: compare by version?
 def newest_versions(listing):
     """Given a MapInfo list return a dictionary d associating every map name with MapInfo of the newest version of that map."""
     mapversions = mk_multidict(attrgetter('mapname'), listing)
-    return mapvals(bestversion, mapversions)
+    return mapvalues(bestversion, mapversions)
 
 MapUpgrade = namedtuple('MapUpgrade', ['old', 'new'])
 def make_upgrade(local, remote, x):
@@ -50,5 +50,8 @@ def list_outdated(local, remote):
         return mapname not in local or local[mapname].modified < remote[mapname].modified
     return [m.mapname for m in remote.values() if is_outdated(m)] #map(adfsa, filter(is_outdated, remote.values()))
 
-def list_orphans(local, remote): #maybe there should be a class/namedtuple for (local, remote) pairs?
+def list_orphans(local, remote):
     return list_subtract(local,remote, weak_eq_mapinfo)
+
+#maybe there should be a class/namedtuple for (local, remote) pairs?
+#on the other hand it could make it even easier to use the wrong version of mapinfo lists (we use several kinds of)

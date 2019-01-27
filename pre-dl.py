@@ -1,15 +1,16 @@
+#!/usr/bin/env python3
 import htmllistparse
 import time
 import os
 import sys
-import signal
+import bz2
 
 from urllib.request import urlopen
 from operator import attrgetter
 from collections import namedtuple
 from mapinfo import MapInfo, parse_version, newest_versions, make_upgrade, list_orphans, list_outdated
 from test import testmaps, testmaps_parsed
-from meme import lmap, lfilter, filter_none
+from meme import lmap, lfilter, filter_none, mk_multidict
 
 url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
 
@@ -18,7 +19,7 @@ gmoddir = 'steamapps/common/GarrysMod/'
 #mapsdir = os.path.join(steamdir, gmoddir, 'garrysmod/download/maps')
 mapsdir = 'fake-mapdir/'
 
-minsize = htmllistparse.human2bytes('10M')
+minsize = htmllistparse.human2bytes('0M')
 mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complicated
 #its not like timezones matter that much here so whatever im too lazy to learn the proper way to handle it
 
@@ -57,12 +58,15 @@ def parse_remote_mapinfo(entry):
     mtime = time.mktime(entry.modified)
     return MapInfo(mapname, version, mtime, entry.size, ext)
 
-def mapinfo_filename(mapinfo):
+def mapinfo_filename(mapinfo, withext = True):
     """Recover map filename given a MapInfo"""
     mapname = mapinfo.mapname
     if mapinfo.version is not None:
         mapname+='_'+mapinfo.version
-    return mapname+mapinfo.ext
+    if withext:
+        return mapname+mapinfo.ext
+    else:
+        return mapname
 
 def mb_fmt(x):
     """Given a size in bytes returns a string that says the size in MBs"""
@@ -154,12 +158,15 @@ writing = False
 def upgrade(u):
     """downloads an upgrade and writes it to disk."""
     global writing
-    filename = mapinfo_filename(u.new)
-    with urlopen(url+filename) as response:
+    filename = mapinfo_filename(u.new, False)
+    with urlopen(url+filename+'.bsp.bz2') as response: #Assumption: server gives us only compressed maps
         data = download(response, u.new.mapname)
         writing = True
-        with open(os.path.join(mapsdir,filename), 'wb') as f:
-            f.write(data)
+        sys.stdout.write("decompressing...")
+        sys.stdout.flush()
+        decompressed = bz2.decompress(data) #TODO: Use temporary files. We are using way more memory than we should
+        with open(os.path.join(mapsdir,filename+'.bsp'), 'wb') as f:
+            f.write(decompressed)
             writing = False # should this be in a finally block?
 
 def remove_map(mapinfo):
@@ -197,9 +204,12 @@ def query_yes_no(question, default="yes"):# http://code.activestate.com/recipes/
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
+def find_extensions(mapinfos):
+    return mk_multidict(lambda x: mapinfo_filename(x, False), mapinfos)
+
 localfiles = os.listdir(mapsdir)
 local_mapinfo = lmap(read_local_mapinfo, localfiles)
-local_mapinfo = list(filter_none(local_mapinfo))# filter out Nones from non-bsp files
+local_mapinfo = filter_none(local_mapinfo)# filter out Nones from non-bsp files
 local_mapinfo = lfilter(is_zs_map, local_mapinfo)
 
 cwd, listing = htmllistparse.fetch_listing(url, timeout=30)
@@ -212,16 +222,6 @@ fresh_local = newest_versions(local_mapinfo)
 outdated = list_outdated(fresh_local, fresh_remote)
 
 upgrades = [make_upgrade(fresh_local, fresh_remote, x) for x in outdated]
-
-def signal_handler(sig, frame):
-    print()# avoid the \r
-    if writing:# this shouldn't happen in normal circumstances
-        print('DOWNLOAD INTERRUPTED WHILE WRITING TO DISK!')
-        print("Since currently pre-dl uses file modification date to compare version, there is a chance that the file was only partially written and next time you run pre-dl it will think it's up to date")
-        print("you might want to check the file size manually")
-        sys.exit(1)
-    sys.exit(0)
-signal.signal(signal.SIGINT, signal_handler)
 
 def forall_prompt(action, xs, summary, prompt, cancelmsg, donemsg="Done!"):
     if len(xs) > 0:
@@ -239,11 +239,14 @@ def forall_prompt(action, xs, summary, prompt, cancelmsg, donemsg="Done!"):
 
 
 active = False
-active = forall_prompt(upgrade, upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!") or active
+active = forall_prompt(upgrade, upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!") or active #python short-circuits 'or' so order matters
 
-orphans = list(list_orphans(local_mapinfo, remote_mapinfo))
+orphans = list_orphans(local_mapinfo, remote_mapinfo)
 
 active = forall_prompt(remove_map, orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.") or active
+
+by_ext = find_extensions(local_mapinfo)
+
 
 if not active:
     print("Nothing to do!")
