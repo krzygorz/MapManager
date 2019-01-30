@@ -31,7 +31,7 @@ def list_subtract(xs,ys,eq1=eq):
         return False if found else x
     return filter_none(map(f, xs))
 
-def mk_multidict(keyfun, xs):
+def inverse_multidict(keyfun, xs):
     """Returns a dict d such that for every k, d[k] is the set of xs with keyfun(x) equal to k."""
     ret = defaultdict(set)
     for x in xs: #no obvious way to do this in functional style

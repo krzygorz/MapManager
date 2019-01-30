@@ -7,10 +7,11 @@ import bz2
 
 from urllib.request import urlopen
 from operator import attrgetter
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 from mapinfo import MapInfo, parse_version, newest_versions, make_upgrade, list_orphans, list_outdated
 from test import testmaps, testmaps_parsed
-from meme import lmap, lfilter, filter_none, mk_multidict
+from meme import lmap, lfilter, filter_none
+from cli import forall_prompt, orphans_summary, upgrade_sumary, mb_fmt, redundant_bz2s_summary
 
 url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
 
@@ -19,7 +20,7 @@ gmoddir = 'steamapps/common/GarrysMod/'
 #mapsdir = os.path.join(steamdir, gmoddir, 'garrysmod/download/maps')
 mapsdir = 'fake-mapdir/'
 
-minsize = htmllistparse.human2bytes('0M')
+minsize = htmllistparse.human2bytes('10M')
 mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complicated
 #its not like timezones matter that much here so whatever im too lazy to learn the proper way to handle it
 
@@ -58,7 +59,7 @@ def parse_remote_mapinfo(entry):
     mtime = time.mktime(entry.modified)
     return MapInfo(mapname, version, mtime, entry.size, ext)
 
-def mapinfo_filename(mapinfo, withext = True):
+def mapinfo_filename(mapinfo, withext = True): #it would probably be good to have this as a class method
     """Recover map filename given a MapInfo"""
     mapname = mapinfo.mapname
     if mapinfo.version is not None:
@@ -68,65 +69,7 @@ def mapinfo_filename(mapinfo, withext = True):
     else:
         return mapname
 
-def mb_fmt(x):
-    """Given a size in bytes returns a string that says the size in MBs"""
-    factor = 1024*1024
-    mbs = round(x/factor)
-    return "{}M".format(mbs)
-def date_fmt(x):
-    return time.strftime('%x', time.gmtime(x))
-
-def truncate(s, n):
-    if len(s) < n:
-        return s
-    else:
-        return s[:n-3]+"..."
-
-def upgrade_sumary(upgrades):
-    print("Available upgrades:")
-    max_name_len = 30
-    fmt_exists = "{name: <{max}} {v: <10} {d1: <10} ({s1}) -> ({s2})"
-    fmt_new    = "{name: <{max}} {v: <10} {d1: <10} ({s2}) NEW"
-    
-    for u in upgrades:
-        old = u.old
-        new = u.new
-        mapname = truncate(new.mapname, max_name_len)
-        v_old = old.version if old and old.version else "???"
-        v_new = new.version if new.version else "???"
-
-        date_new = date_fmt(u.new.modified)
-        if old:
-            print(fmt_exists.format(name = mapname,
-                                    max  = max_name_len+2,
-                                    v    = "{} -> {}".format(v_old, v_new),
-                                    s1   = mb_fmt(old.size),
-                                    s2   = mb_fmt(new.size),
-                                    d1   = date_new))
-        else:
-            print(fmt_new.format(name = mapname,
-                                 max  = max_name_len+2,
-                                 v   = v_new,
-                                 s2   = mb_fmt(new.size),
-                                 d1   = date_new))
-    print()
-    print("total download size: ", mb_fmt(sum([u.new.size for u in upgrades])))
-
-def orphans_summary(orphans):
-    print("Found orphaned packages:")
-    max_name_len = 30
-    fmt = "{name: <{max}} {v: <10} {d: <10} ({s})"
-    for o in orphans:
-        mapname = truncate(o.mapname, max_name_len)
-        print(fmt.format(name = mapname,
-                        max  = max_name_len+2,
-                        v    = o.version if o.version else "???",
-                        s   = mb_fmt(o.size),
-                        d   = date_fmt(o.modified)))
-    print()
-    print("total download size: ", mb_fmt(sum([u.new.size for u in upgrades])))
-
-
+#FIXME: what is going on with the decreasing speed?!
 def download(response, name, chunk_size=8192):  #adapted from https://stackoverflow.com/a/2030027
     """given a response, downloads the data (to memory) and returns it. Also takes a name to be used for reporting download progress."""
     total_size = response.getheader('Content-Length').strip()
@@ -172,44 +115,24 @@ def upgrade(u):
 def remove_map(mapinfo):
     os.remove(os.path.join(mapsdir,mapinfo_filename(mapinfo)))
 
-def query_yes_no(question, default="yes"):# http://code.activestate.com/recipes/577058/
-    """Ask a yes/no question via raw_input() and return their answer.
-
-    "question" is a string that is presented to the user.
-    "default" is the presumed answer if the user just hits <Enter>.
-        It must be "yes" (the default), "no" or None (meaning
-        an answer is required of the user).
-
-    The "answer" return value is True for "yes" or False for "no".
-    """
-    valid = {"yes": True, "y": True, "ye": True,
-             "no": False, "n": False}
-    if default is None:
-        prompt = " [y/n] "
-    elif default == "yes":
-        prompt = " [Y/n] "
-    elif default == "no":
-        prompt = " [y/N] "
-    else:
-        raise ValueError("invalid default answer: '%s'" % default)
-
-    while True:
-        sys.stdout.write(question + prompt)
-        choice = input().lower()
-        if default is not None and choice == '':
-            return valid[default]
-        elif choice in valid:
-            return valid[choice]
-        else:
-            sys.stdout.write("Please respond with 'yes' or 'no' "
-                             "(or 'y' or 'n').\n")
 
 def find_extensions(mapinfos):
-    return mk_multidict(lambda x: mapinfo_filename(x, False), mapinfos)
+    """returns a dict that associates mapname+'_'+version with all the MapInfos that have this plus an extension as file name"""
+    ret = defaultdict(dict)# this could probably be somehow merged with multidict but I'm not sure if that is a good idea
+    for m in mapinfos:
+        ret[mapinfo_filename(m, False)][m.ext] = m
+    return ret
+
+def redundant_bzs(by_ext):
+    def f(x):
+        """returns """
+        if '.bsp' in x:
+            return x.get('.bsp.bz2')
+    return filter_none(map(f,by_ext.values()))
 
 localfiles = os.listdir(mapsdir)
-local_mapinfo = lmap(read_local_mapinfo, localfiles)
-local_mapinfo = filter_none(local_mapinfo)# filter out Nones from non-bsp files
+local_mapinfo = [read_local_mapinfo(f) for f in localfiles]
+local_mapinfo = [x for x in local_mapinfo if x and is_zs_map(x)]# filter out non-zs maps and Nones from non-bsp files
 local_mapinfo = lfilter(is_zs_map, local_mapinfo)
 
 cwd, listing = htmllistparse.fetch_listing(url, timeout=30)
@@ -221,32 +144,17 @@ fresh_remote = newest_versions(remote_filtered)
 fresh_local = newest_versions(local_mapinfo)
 outdated = list_outdated(fresh_local, fresh_remote)
 
-upgrades = [make_upgrade(fresh_local, fresh_remote, x) for x in outdated]
-
-def forall_prompt(action, xs, summary, prompt, cancelmsg, donemsg="Done!"):
-    if len(xs) > 0:
-        summary(xs)
-        if query_yes_no(prompt):
-            for x in xs:
-                action(x)
-            print(donemsg)
-            return True
-        else:
-            print(cancelmsg)
-            return False
-    else:
-        return False
-
-
 active = False
+
+upgrades = [make_upgrade(fresh_local, fresh_remote, x) for x in outdated]
 active = forall_prompt(upgrade, upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!") or active #python short-circuits 'or' so order matters
 
 orphans = list_orphans(local_mapinfo, remote_mapinfo)
-
 active = forall_prompt(remove_map, orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.") or active
 
 by_ext = find_extensions(local_mapinfo)
-
+redundant = redundant_bzs(by_ext)
+active = forall_prompt(remove_map, redundant, redundant_bz2s_summary, "Remove all redundant files?", "No .bz2 files deleted.") or active
 
 if not active:
     print("Nothing to do!")

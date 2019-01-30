@@ -7,7 +7,7 @@ import re
 from operator import attrgetter
 from collections import namedtuple
 from collections import namedtuple
-from meme import mk_multidict, mapvalues, list_subtract
+from meme import inverse_multidict, mapvalues, list_subtract
 MapInfo = namedtuple('MapInfo',['mapname','version','modified','size','ext'])# We *might* want to change this into a class
 #note: remote and local sizes will be different since remote files are compressed!
 #also, sizes are approximate since we are just parsing the apache file listing which gives us the size in MBs
@@ -32,7 +32,7 @@ def bestversion(xs):# TODO: compare by version?
     return max(xs,key = attrgetter('modified'))
 def newest_versions(listing):
     """Given a MapInfo list return a dictionary d associating every map name with MapInfo of the newest version of that map."""
-    mapversions = mk_multidict(attrgetter('mapname'), listing)
+    mapversions = inverse_multidict(attrgetter('mapname'), listing)
     return mapvalues(bestversion, mapversions)
 
 MapUpgrade = namedtuple('MapUpgrade', ['old', 'new'])
