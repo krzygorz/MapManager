@@ -4,6 +4,7 @@ import time
 import os
 import sys
 import bz2
+import tempfile
 
 from urllib.request import urlopen
 from operator import attrgetter
@@ -69,52 +70,53 @@ def mapinfo_filename(mapinfo, withext = True): #it would probably be good to hav
     else:
         return mapname
 
-#FIXME: what is going on with the decreasing speed?!
-def download(response, name, chunk_size=8192):  #adapted from https://stackoverflow.com/a/2030027
-    """given a response, downloads the data (to memory) and returns it. Also takes a name to be used for reporting download progress."""
-    total_size = response.getheader('Content-Length').strip()
-    total_size = int(total_size)
-    bytes_so_far = 0
-    time_start = time.time()
-    data = b""
+def download(url, name, chunk_size=4096):  #adapted from https://stackoverflow.com/a/2030027
+    """Download data from the url to a temporary file and returns the file object. Also takes a name to be used for reporting download progress."""
+    with urlopen(url) as response: #TODO: Error handling!
+        total_size = response.getheader('Content-Length').strip()
+        total_size = int(total_size)
+        bytes_so_far = 0
+        time_start = time.time()
+        tmp = tempfile.TemporaryFile()
 
-    while True:
-        chunk = response.read(chunk_size)
-        bytes_so_far += len(chunk)
-        elapsed = time.time()-time_start
-        speed = bytes_so_far/elapsed
+        while True: #TODO: Use iterators?
+            chunk = response.read(chunk_size)
+            bytes_so_far += len(chunk)
+            elapsed = time.time()-time_start
+            speed = bytes_so_far/elapsed
 
-        if not chunk:
-             break
+            if not chunk:
+                break
 
-        data += chunk
-        percent = float(bytes_so_far) / total_size
-        percent = round(percent*100, 2)
-        sys.stdout.write("{} - Downloaded {}b of {}b ({:0.2f}%)   avg speed: {:0.2f} Kb/s   ETA: {}s       \r".format(name, mb_fmt(bytes_so_far), mb_fmt(total_size), percent, speed/1024, round(total_size/speed-elapsed)))
+            tmp.write(chunk)
 
-        if bytes_so_far >= total_size:
-            sys.stdout.write('\n')
+            percent = float(bytes_so_far) / total_size
+            percent = round(percent*100, 2)
+            sys.stdout.write("{} - Downloaded {}b of {}b ({:0.2f}%)   avg speed: {:0.2f} Kb/s   ETA: {}s       \r".format(name, mb_fmt(bytes_so_far), mb_fmt(total_size), percent, speed/1024, round(total_size/speed-elapsed)))
+    sys.stdout.write('\n')
+    return tmp
 
-    return data
+def extract_to(f, path):
+    """Reads bz2 data from the file object and writes it to the given path."""
+    f.seek(0)
+    decompressor = bz2.BZ2Decompressor()
+    with open(path, 'wb') as f_out:
+        while True:
+            chunk = f.read(1024)
+            if not chunk:
+                break
+            data = decompressor.decompress(chunk)
+            f_out.write(data)
 
-writing = False
 def upgrade(u):
     """downloads an upgrade and writes it to disk."""
-    global writing
     filename = mapinfo_filename(u.new, False)
-    with urlopen(url+filename+'.bsp.bz2') as response: #Assumption: server gives us only compressed maps
-        data = download(response, u.new.mapname)
-        writing = True
-        sys.stdout.write("decompressing...")
-        sys.stdout.flush()
-        decompressed = bz2.decompress(data) #TODO: Use temporary files. We are using way more memory than we should
-        with open(os.path.join(mapsdir,filename+'.bsp'), 'wb') as f:
-            f.write(decompressed)
-            writing = False # should this be in a finally block?
+    tmp = download(url+filename+'.bsp.bz2', u.new.mapname)
+    print("decompressing...")
+    extract_to(tmp, os.path.join(mapsdir,filename+'.bsp')) #Assumption: server gives us only compressed maps
 
 def remove_map(mapinfo):
     os.remove(os.path.join(mapsdir,mapinfo_filename(mapinfo)))
-
 
 def find_extensions(mapinfos):
     """returns a dict that associates mapname+'_'+version with all the MapInfos that have this plus an extension as file name"""
@@ -130,23 +132,29 @@ def redundant_bzs(by_ext):
             return x.get('.bsp.bz2')
     return filter_none(map(f,by_ext.values()))
 
-localfiles = os.listdir(mapsdir)
-local_mapinfo = [read_local_mapinfo(f) for f in localfiles]
-local_mapinfo = [x for x in local_mapinfo if x and is_zs_map(x)]# filter out non-zs maps and Nones from non-bsp files
-local_mapinfo = lfilter(is_zs_map, local_mapinfo)
+def get_local(mapsdir):
+    localfiles = os.listdir(mapsdir)
+    local_mapinfo = [read_local_mapinfo(f) for f in localfiles]
+    return [x for x in local_mapinfo if x and is_zs_map(x)]# filter out non-zs maps and Nones from non-bsp files
+def get_remote(url):
+    _, listing = htmllistparse.fetch_listing(url, timeout=30)
+    return [parse_remote_mapinfo(l) for l in listing]
 
-cwd, listing = htmllistparse.fetch_listing(url, timeout=30)
-remote_mapinfo = lmap(parse_remote_mapinfo, listing)
-remote_filtered = filter(should_check, remote_mapinfo)
-remote_filtered = sorted(remote_filtered, key=attrgetter('modified'), reverse=True)
+def find_upgrades(local_mapinfo, remote_mapinfo):
+    remote_filtered = filter(should_check, remote_mapinfo)
+    remote_filtered = sorted(remote_filtered, key=attrgetter('modified'), reverse=True)
 
-fresh_remote = newest_versions(remote_filtered)
-fresh_local = newest_versions(local_mapinfo)
-outdated = list_outdated(fresh_local, fresh_remote)
+    fresh_remote = newest_versions(remote_filtered)
+    fresh_local = newest_versions(local_mapinfo)
+    outdated = list_outdated(fresh_local, fresh_remote)
+    return [make_upgrade(fresh_local, fresh_remote, x) for x in outdated]
+
+local_mapinfo = get_local(mapsdir)
+remote_mapinfo = get_remote(url)
 
 active = False
 
-upgrades = [make_upgrade(fresh_local, fresh_remote, x) for x in outdated]
+upgrades = find_upgrades(local_mapinfo, remote_mapinfo)
 active = forall_prompt(upgrade, upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!") or active #python short-circuits 'or' so order matters
 
 orphans = list_orphans(local_mapinfo, remote_mapinfo)
