@@ -41,11 +41,3 @@ def inverse_multidict(keyfun, xs):
 def mapvalues(f, dct):
     """Apply f to values of dict and return the result dict (keys stay the same)."""
     return {k: f(v) for k, v in dct.items()}
-
-def lmap(f, xs): #FIXME: this is retarded
-    """list(map(f,xs)) - for when the map has to be reused or when we want to force side effects"""
-    return list(map(f,xs))
-
-def lfilter(f, xs):
-    """list(filter(f,xs)) - for when the filter has to be reused or when we want to force side effects"""
-    return list(filter(f,xs))

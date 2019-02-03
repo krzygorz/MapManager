@@ -5,11 +5,13 @@ Arg parsing, interactive input/output.
 import time
 import sys
 
-def mb_fmt(x):
-    """Given a size in bytes returns a string that says the size in MBs"""
-    factor = 1024*1024
-    mbs = round(x/factor)
-    return "{}M".format(mbs)
+from htmllistparse import human2bytes
+from mapfiles import mapsdir, get_local, get_remote, upgrade, remove_map, mb_fmt
+from mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs
+from functools import reduce
+
+url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
+
 def date_fmt(x):
     return time.strftime('%x', time.gmtime(x))
 
@@ -49,7 +51,7 @@ def upgrade_sumary(upgrades):
     print("total download size: ", mb_fmt(sum([u.new.size for u in upgrades])))
 
 def orphans_summary(orphans):
-    print("Found orphaned packages:")
+    print("Found orphaned maps:")
     max_name_len = 30
     fmt = "{name: <{max}} {v: <10} {d: <10} ({s})"
     for o in orphans:
@@ -108,7 +110,7 @@ def query_yes_no(question, default="yes"):# http://code.activestate.com/recipes/
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
-def forall_prompt(action, xs, summary, prompt, cancelmsg, donemsg="Done!"): #TODO: move CLI stuff to a new file
+def forall_prompt(action, xs, summary, prompt, cancelmsg, donemsg="Done!"):
     if len(xs) > 0:
         summary(xs)
         if query_yes_no(prompt):
@@ -122,3 +124,30 @@ def forall_prompt(action, xs, summary, prompt, cancelmsg, donemsg="Done!"): #TOD
     else:
         return False
 
+def accum_actions(actions):
+    def run(f):
+        f()
+    def or_(a,b): #operator.or_ doesn't like None
+        return a or b
+    return reduce(or_, map(run, actions))
+
+minsize = human2bytes('10M')
+mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complicated
+#its not like timezones matter that much here so whatever im too lazy to learn the proper way to handle it
+
+local_mapinfo = get_local(mapsdir)
+remote_mapinfo = get_remote(url)
+
+def upgradeall():
+    upgrades = list_upgrades(local_mapinfo, remote_mapinfo, mindate, minsize)
+    return forall_prompt(upgrade, upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!")
+def remove_orphans():
+    orphans = list_orphans(local_mapinfo, remote_mapinfo)
+    return forall_prompt(remove_map, orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.")
+def remove_redundant_bz2s():
+    by_ext = list_extensions(local_mapinfo)
+    redundant = redundant_bzs(by_ext)
+    return forall_prompt(remove_map, redundant, redundant_bz2s_summary, "Remove all redundant files?", "No .bz2 files deleted.")
+active = accum_actions([upgradeall, remove_orphans, remove_redundant_bz2s])
+if not active:
+    print("Nothing to do!")
