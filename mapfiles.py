@@ -129,6 +129,8 @@ def upgrade(u, url, mapsdir): #TODO: all the operations that need url or mapsdir
 
 def remove_map(mapinfo, mapsdir):
     os.remove(os.path.join(mapsdir,mapinfo.filename()))
+def extract_file(mapinfo, mapsdir):
+    print("Sorry, extraction not implemented yet! ({})".format(mapinfo.mapname))
 
 def get_local(mapsdir):
     localfiles = os.listdir(mapsdir)

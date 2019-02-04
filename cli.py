@@ -6,8 +6,8 @@ import time
 import sys
 
 from htmllistparse import human2bytes
-from mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt
-from mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs
+from mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file
+from mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted
 from functools import reduce, partial
 
 url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
@@ -78,6 +78,18 @@ def redundant_bz2s_summary(redundant):# TODO: make a generic function for those,
     print()
     print("total freed up space: ", mb_fmt(sum([u.size for u in redundant])))
 
+def unextracted_summary(unextracted):
+    print("Found unextracted .bz2 files!")
+    max_name_len = 30
+    fmt = "{name: <{max}} {v: <10} {d: <10} ({s})"
+    for o in unextracted:
+        mapname = truncate(o.mapname, max_name_len)
+        print(fmt.format(name = mapname,
+                        max  = max_name_len+2,
+                        v    = o.version if o.version else "???",
+                        s   = mb_fmt(o.size),
+                        d   = date_fmt(o.modified)))
+
 def query_yes_no(question, default="yes"):# http://code.activestate.com/recipes/577058/
     """Ask a yes/no question via raw_input() and return their answer.
 
@@ -139,6 +151,7 @@ mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complic
 mapsdir = "fake-mapdir"
 local_mapinfo = get_local(mapsdir)
 remote_mapinfo = get_remote(url)
+by_ext = list_extensions(local_mapinfo)
 
 def upgradeall():
     upgrades = list_upgrades(local_mapinfo, remote_mapinfo, mindate, minsize)
@@ -147,9 +160,11 @@ def remove_orphans():
     orphans = list_orphans(local_mapinfo, remote_mapinfo)
     return forall_prompt(partial(remove_map, mapsdir=mapsdir), orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.")
 def remove_redundant_bz2s():
-    by_ext = list_extensions(local_mapinfo)
     redundant = redundant_bzs(by_ext)
     return forall_prompt(partial(remove_map,mapsdir=mapsdir), redundant, redundant_bz2s_summary, "Remove all redundant files?", "No .bz2 files deleted.")
-active = accum_actions([upgradeall, remove_orphans, remove_redundant_bz2s])
+def extract_all(): #I wouldn't worry about this one too much since it shouldn't ever be triggered in normal circumstances. Mostly for internal use (cleaning up the mess from previous, bad, implementations of the upgrade downloader)
+    unextracted = list_unextracted(by_ext)
+    return forall_prompt(partial(extract_file,mapsdir=mapsdir), unextracted, unextracted_summary, "Extract all?", "No files extracted.")
+active = accum_actions([upgradeall, remove_orphans, remove_redundant_bz2s, extract_all]) #TODO: make sure file removal doesn't interfere with later operations
 if not active:
     print("Nothing to do!")

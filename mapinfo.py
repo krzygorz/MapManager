@@ -103,3 +103,11 @@ def redundant_bzs(by_ext):
         if '.bsp' in x:
             return x.get('.bsp.bz2')
     return filter_none(map(f,by_ext.values()))
+
+def list_unextracted(by_ext):
+    """Returns a list of MapInfos that point to compressed files that are no longer needed."""
+    def f(x):
+        """returns """
+        if '.bsp.bz2' in x and not '.bsp' in x:
+            return x['.bsp.bz2']
+    return filter_none(map(f,by_ext.values()))
