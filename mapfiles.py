@@ -1,4 +1,4 @@
-"""Everything related to finding map files in the /download/maps directory and parsing the info."""
+"""Everything related to finding map files in the download/maps/ directory and parsing the info."""
 
 import htmllistparse
 import time
@@ -6,17 +6,47 @@ import os
 import sys
 import bz2
 import tempfile
+import platform
+import itertools
 
 from urllib.request import urlopen
 from operator import attrgetter
 from collections import namedtuple, defaultdict
+
+from keyvalues import KeyValues
 from mapinfo import MapInfo, parse_version, is_zs_map
 from meme import filter_none
 
-steamdir = '/mnt/shared/SteamLibrary/' #TODO: Automatic detection?
 gmoddir = 'steamapps/common/GarrysMod/'
-#mapsdir = os.path.join(steamdir, gmoddir, 'garrysmod/download/maps')
-mapsdir = 'fake-mapdir/'
+def has_gmod(path):
+    fullpath = os.path.join(path, gmoddir)# is this reliable?
+    return os.path.isdir(fullpath)
+    
+def find_gmod():
+    p = platform.system()
+    if p == 'Linux':
+        main_lib = os.path.expanduser('~/.steam/steam/')
+    elif p == 'Windows':
+        main_lib = r'C:\Program Files\Steam\SteamApps'
+
+    if has_gmod(main_lib):
+        return os.path.join(main_lib, gmoddir)
+
+    try:
+        kv = KeyValues(filename=os.path.join(main_lib, 'steamapps/libraryfolders.vdf'))
+    except FileNotFoundError:
+        print("Couldn't find libraryfolders.vdf", file=sys.stderr)
+        return []
+
+    library_folders = kv['LibraryFolders'] #it would be nice to rewrite this using map and any
+    for i in itertools.count(1):
+        key = str(i)
+        if key in library_folders:
+            path = library_folders[key]
+            if has_gmod(path):
+                return path
+        else:
+            return []
 
 map_exts = ['.bsp.bz2','.bsp']
 def split_extension(filename):
@@ -31,7 +61,7 @@ def mb_fmt(x):
     mbs = round(x/factor)
     return "{}M".format(mbs)
 
-def read_local_mapinfo(filename):
+def read_local_mapinfo(filename, mapsdir):
     """Make a MapInfo based on file metadata. filename is relative to the maps directory."""
     rawname, ext = split_extension(filename)
     if not rawname: 
@@ -90,20 +120,19 @@ def extract_to(f, path):
             data = decompressor.decompress(chunk)
             f_out.write(data)
 
-url = "http://142.44.142.152/fastdl/garrysmod/maps/"
-def upgrade(u):
+def upgrade(u, url, mapsdir): #TODO: all the operations that need url or mapsdir should probably be methods of a new class
     """downloads an upgrade and writes it to disk."""
     filename = u.new.filename(False)
     tmp = download(url+filename+'.bsp.bz2', u.new.mapname)
     print("decompressing...")
     extract_to(tmp, os.path.join(mapsdir,filename+'.bsp')) #Assumption: server gives us only compressed maps
 
-def remove_map(mapinfo):
+def remove_map(mapinfo, mapsdir):
     os.remove(os.path.join(mapsdir,mapinfo.filename()))
 
 def get_local(mapsdir):
     localfiles = os.listdir(mapsdir)
-    local_mapinfo = [read_local_mapinfo(f) for f in localfiles]
+    local_mapinfo = [read_local_mapinfo(f, mapsdir) for f in localfiles]
     return [x for x in local_mapinfo if x and is_zs_map(x)]# filter out non-zs maps and Nones from non-bsp files
 def get_remote(url):
     _, listing = htmllistparse.fetch_listing(url, timeout=30)

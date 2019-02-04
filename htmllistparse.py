@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-
 # Adapted from https://github.com/gumblex/htmllisting-parser
-# Thanks gumblex ;)
 
 LICENSE='''
 MIT License
