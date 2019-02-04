@@ -27,7 +27,7 @@ def find_gmod():
     if p == 'Linux':
         main_lib = os.path.expanduser('~/.steam/steam/')
     elif p == 'Windows':
-        main_lib = r'C:\Program Files\Steam\SteamApps'
+        main_lib = r'C:\Program Files (x86)\Steam'
 
     if has_gmod(main_lib):
         return os.path.join(main_lib, gmoddir)
@@ -103,7 +103,7 @@ def download(url, name, chunk_size=4096):  #adapted from https://stackoverflow.c
             tmp.write(chunk)
 
             percent = float(bytes_so_far) / total_size #TODO: move all the cli stuff into cli.py
-            percent = round(percent*100, 2)
+            percent = round(percent*100, 2) #TODO: and fix the division by zero!!!
             sys.stdout.write("{} - Downloaded {}b of {}b ({:0.2f}%)   avg speed: {:0.2f} Kb/s   ETA: {}s       \r".format(name, mb_fmt(bytes_so_far), mb_fmt(total_size), percent, speed/1024, round(total_size/speed-elapsed)))
     sys.stdout.write('\n')
     return tmp

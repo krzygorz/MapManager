@@ -4,9 +4,10 @@ Arg parsing, interactive input/output.
 
 import time
 import sys
+import os
 
 from htmllistparse import human2bytes
-from mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file
+from mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file, find_gmod
 from mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted
 from functools import reduce, partial
 
@@ -148,7 +149,7 @@ minsize = human2bytes('10M')
 mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complicated
 #its not like timezones matter that much here so whatever im too lazy to learn the proper way to handle it
 
-mapsdir = "fake-mapdir"
+mapsdir = os.path.join(find_gmod(), 'garrysmod', 'download', 'maps')#"fake-mapdir"
 local_mapinfo = get_local(mapsdir)
 remote_mapinfo = get_remote(url)
 by_ext = list_extensions(local_mapinfo)
