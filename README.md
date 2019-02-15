@@ -1,5 +1,5 @@
 # MapManager
-MapManager is a tool for keeping your garrysmod/downloads/maps/ directory in sync with a server's listing.
+MapManager is a tool for keeping your `garrysmod/downloads/maps/` directory in sync with a server's listing.
 ## Features
 * Download new maps and new versions of maps
 * Remove old versions of maps and maps removed from the server's listing

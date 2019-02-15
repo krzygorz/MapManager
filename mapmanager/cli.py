@@ -4,9 +4,10 @@ Arg parsing, interactive input/output.
 
 import time
 import sys
+import os
 
 from mapmanager.htmllistparse import human2bytes
-from mapmanager.mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file
+from mapmanager.mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file, find_gmod
 from mapmanager.mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted
 from functools import reduce, partial
 
