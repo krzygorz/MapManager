@@ -6,7 +6,7 @@ import re
 import time
 from operator import attrgetter
 from collections import namedtuple, defaultdict
-from meme import inverse_multidict, mapvalues, list_subtract, filter_none
+from mapmanager.meme import inverse_multidict, mapvalues, list_subtract, filter_none
 from dataclasses import dataclass
 #MapInfo = namedtuple('MapInfo',['mapname','version','modified','size','ext'])# We *might* want to change this into a class
 

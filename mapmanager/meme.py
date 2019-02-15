@@ -1,5 +1,5 @@
 """
-Trying to do functional programming in python was a bad idea...
+Shitcode containment zone
 """
 
 from operator import eq

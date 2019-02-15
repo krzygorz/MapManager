@@ -5,9 +5,9 @@ Arg parsing, interactive input/output.
 import time
 import sys
 
-from htmllistparse import human2bytes
-from mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file
-from mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted
+from mapmanager.htmllistparse import human2bytes
+from mapmanager.mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file
+from mapmanager.mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted
 from functools import reduce, partial
 
 url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
@@ -144,27 +144,28 @@ def accum_actions(actions):
         return a or b
     return reduce(or_, map(run, actions), False) #can't just use any() since it short-circuits
 
-minsize = human2bytes('10M')
-mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complicated
-#its not like timezones matter that much here so whatever im too lazy to learn the proper way to handle it
+def main():
+    minsize = human2bytes('10M')
+    mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complicated
+    #its not like timezones matter that much here so whatever im too lazy to learn the proper way to handle it
 
-mapsdir = "fake-mapdir"
-local_mapinfo = get_local(mapsdir)
-remote_mapinfo = get_remote(url)
-by_ext = list_extensions(local_mapinfo)
+    mapsdir = "fake-mapdir"
+    local_mapinfo = get_local(mapsdir)
+    remote_mapinfo = get_remote(url)
+    by_ext = list_extensions(local_mapinfo)
 
-def upgradeall():
-    upgrades = list_upgrades(local_mapinfo, remote_mapinfo, mindate, minsize)
-    return forall_prompt(partial(upgrade, url=url, mapsdir=mapsdir), upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!")
-def remove_orphans():
-    orphans = list_orphans(local_mapinfo, remote_mapinfo)
-    return forall_prompt(partial(remove_map, mapsdir=mapsdir), orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.")
-def remove_redundant_bz2s():
-    redundant = redundant_bzs(by_ext)
-    return forall_prompt(partial(remove_map,mapsdir=mapsdir), redundant, redundant_bz2s_summary, "Remove all redundant files?", "No .bz2 files deleted.")
-def extract_all(): #I wouldn't worry about this one too much since it shouldn't ever be triggered in normal circumstances. Mostly for internal use (cleaning up the mess from previous, bad, implementations of the upgrade downloader)
-    unextracted = list_unextracted(by_ext)
-    return forall_prompt(partial(extract_file,mapsdir=mapsdir), unextracted, unextracted_summary, "Extract all?", "No files extracted.")
-active = accum_actions([upgradeall, remove_orphans, remove_redundant_bz2s, extract_all]) #TODO: make sure file removal doesn't interfere with later operations
-if not active:
-    print("Nothing to do!")
+    def upgradeall():
+        upgrades = list_upgrades(local_mapinfo, remote_mapinfo, mindate, minsize)
+        return forall_prompt(partial(upgrade, url=url, mapsdir=mapsdir), upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!")
+    def remove_orphans():
+        orphans = list_orphans(local_mapinfo, remote_mapinfo)
+        return forall_prompt(partial(remove_map, mapsdir=mapsdir), orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.")
+    def remove_redundant_bz2s():
+        redundant = redundant_bzs(by_ext)
+        return forall_prompt(partial(remove_map,mapsdir=mapsdir), redundant, redundant_bz2s_summary, "Remove all redundant files?", "No .bz2 files deleted.")
+    def extract_all(): #I wouldn't worry about this one too much since it shouldn't ever be triggered in normal circumstances. Mostly for internal use (cleaning up the mess from previous, bad, implementations of the upgrade downloader)
+        unextracted = list_unextracted(by_ext)
+        return forall_prompt(partial(extract_file,mapsdir=mapsdir), unextracted, unextracted_summary, "Extract all?", "No files extracted.")
+    active = accum_actions([upgradeall, remove_orphans, remove_redundant_bz2s, extract_all]) #TODO: make sure file removal doesn't interfere with later operations
+    if not active:
+        print("Nothing to do!")

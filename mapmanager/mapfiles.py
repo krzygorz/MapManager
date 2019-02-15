@@ -1,6 +1,5 @@
 """Everything related to finding map files in the download/maps/ directory and parsing the info."""
 
-import htmllistparse
 import time
 import os
 import sys
@@ -13,9 +12,10 @@ from urllib.request import urlopen
 from operator import attrgetter
 from collections import namedtuple, defaultdict
 
-from keyvalues import KeyValues
-from mapinfo import MapInfo, parse_version, is_zs_map
-from meme import filter_none
+from mapmanager.htmllistparse import fetch_listing
+from mapmanager.keyvalues import KeyValues
+from mapmanager.mapinfo import MapInfo, parse_version, is_zs_map
+from mapmanager.meme import filter_none
 
 gmoddir = 'steamapps/common/GarrysMod/'
 def has_gmod(path):
@@ -137,5 +137,5 @@ def get_local(mapsdir):
     local_mapinfo = [read_local_mapinfo(f, mapsdir) for f in localfiles]
     return [x for x in local_mapinfo if x and is_zs_map(x)]# filter out non-zs maps and Nones from non-bsp files
 def get_remote(url):
-    _, listing = htmllistparse.fetch_listing(url, timeout=30)
+    _, listing = fetch_listing(url, timeout=30)
     return [parse_remote_mapinfo(l) for l in listing]
