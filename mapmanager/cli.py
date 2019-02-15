@@ -2,6 +2,9 @@
 Arg parsing, interactive input/output.
 """
 
+import argparse
+import datetime
+import operator
 import time
 import sys
 import os
@@ -11,7 +14,7 @@ from mapmanager.mapfiles import get_local, get_remote, upgrade, remove_map, mb_f
 from mapmanager.mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted
 from functools import reduce, partial
 
-url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
+sunrust_url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
 
 def date_fmt(x):
     return time.strftime('%x', time.gmtime(x))
@@ -145,17 +148,32 @@ def accum_actions(actions):
         return a or b
     return reduce(or_, map(run, actions), False) #can't just use any() since it short-circuits
 
-def main():
-    minsize = human2bytes('10M')
-    mindate = time.mktime(time.strptime("01 Dec 2018", "%d %b %Y"))# time is complicated
-    #its not like timezones matter that much here so whatever im too lazy to learn the proper way to handle it
+def read_date(x):
+    return datetime.datetime.fromisoformat(x).timestamp()# TODO: Is this the proper way to do it? Same with reading dates from server listing.
 
-    mapsdir = "fake-mapdir"
+def parse_args(): #TODO: use docopt?
+    parser = argparse.ArgumentParser(description="Sync the downloads/maps/ directory with a server's listing")
+    parser.add_argument('-u', '--url', help="The url of the server's maps directory", default=sunrust_url) #TODO: remove defaults, move to 'launcher' .sh and .bat files
+    parser.add_argument('-d', '--mindate', help="During download/update phase, ignore serverside maps older than the given date.", default='2018-05-01')
+    parser.add_argument('-s', '--minsize', help="During download/update phase, ignore serverside maps with size smaller than the given size. Example: mapmanager --minsize 10M", default='10M')
+    parser.add_argument('-m', '--maps', help="Path to the maps/ directory. If not given, MapManager will try to find Garry's Mod automatically.")
+    parser.add_argument('operations', help="A list of operations to perform. Possible choices are: all, update, clean_orphans, clean_compressed. Default: all", default=['all'] ,nargs='*') #Extract intentionally not mentioned; see comment on extract_all()
+    return parser.parse_args()
+
+def main():
+    args = parse_args()
+    minsize = human2bytes(args.minsize) #TODO: Shouldn't this be in parse_args too?!
+    mindate = read_date(args.mindate)
+    url = args.url
+    op_names = args.operations
+    mapsdir = args.maps if args.maps else find_gmod()
+    op_all = op_names == ['all']
+
     local_mapinfo = get_local(mapsdir)
     remote_mapinfo = get_remote(url)
     by_ext = list_extensions(local_mapinfo)
 
-    def upgradeall():
+    def upgradeall(): #TODO: We should be consistent about calling it 'update' or 'upgrade'. Upgrade seems better from package-management point of view but I'm not sure if it fits in this context.
         upgrades = list_upgrades(local_mapinfo, remote_mapinfo, mindate, minsize)
         return forall_prompt(partial(upgrade, url=url, mapsdir=mapsdir), upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!")
     def remove_orphans():
@@ -167,6 +185,8 @@ def main():
     def extract_all(): #I wouldn't worry about this one too much since it shouldn't ever be triggered in normal circumstances. Mostly for internal use (cleaning up the mess from previous, bad, implementations of the upgrade downloader)
         unextracted = list_unextracted(by_ext)
         return forall_prompt(partial(extract_file,mapsdir=mapsdir), unextracted, unextracted_summary, "Extract all?", "No files extracted.")
-    active = accum_actions([upgradeall, remove_orphans, remove_redundant_bz2s, extract_all]) #TODO: make sure file removal doesn't interfere with later operations
+    op_lookup = {'upgrade': upgradeall, 'clean_orphans': remove_orphans, 'clean_compressed': remove_redundant_bz2s, 'extract': extract_all}
+    operations = [upgradeall,remove_orphans,remove_redundant_bz2s] if op_all else [op_lookup[x] for x in op_names]
+    active = accum_actions(operations) #TODO: Make sure file removal doesn't interfere with later operations. Currently local_mapinfo is not updated after file removal.
     if not active:
         print("Nothing to do!")
