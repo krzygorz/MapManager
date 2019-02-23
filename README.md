@@ -39,6 +39,7 @@ optional arguments:
 ## Todo
 * Currently the code is optimised for the Sunrust ZS server. It should be easy to generalize it to other fastdl servers but they could use different naming conventions etc...
 * Proper exception handling.
-* Better CLI.
+* Allow the user to choose to use parsed version strings to compare version.
+* Add an option to remove all the old versions of maps, even if they are still on the server.
 * An easy way to launch it for those who fear commandline.
 * Rewrite the entire thing to Haskell because why not
