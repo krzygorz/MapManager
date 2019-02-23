@@ -5,6 +5,12 @@ MapManager is a tool for keeping your `garrysmod/downloads/maps/` directory in s
 * Remove old versions of maps and maps removed from the server's listing
 ## Screenshots
 ![](https://i.imgur.com/POssDOr.png "MapManager running on Linux, with fresh gmod instance")
+## Installation
+```
+git clone https://github.com/krzygorz/MapManager.git
+cd MapManager
+pip install --user -e .
+```
 ## Usage
 ```
 usage: mapmanager [-h] [-u URL] [-d MINDATE] [-s MINSIZE] [-m MAPS]
