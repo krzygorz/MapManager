@@ -171,7 +171,6 @@ def main():
 
     local_mapinfo = get_local(mapsdir)
     remote_mapinfo = get_remote(url)
-    print(sorted(remote_mapinfo, key=operator.attrgetter('modified')))
     by_ext = list_extensions(local_mapinfo)
 
     def upgradeall(): #TODO: We should be consistent about calling it 'update' or 'upgrade'. Upgrade seems better from package-management point of view but I'm not sure if it fits in this context.
