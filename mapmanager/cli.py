@@ -154,7 +154,7 @@ def read_date(x):
 def parse_args(): #TODO: use docopt?
     parser = argparse.ArgumentParser(description="Sync the downloads/maps/ directory with a server's listing")
     parser.add_argument('-u', '--url', help="The url of the server's maps directory", default=sunrust_url) #TODO: remove defaults, move to 'launcher' .sh and .bat files
-    parser.add_argument('-d', '--mindate', help="During download/update phase, ignore serverside maps older than the given date.", default='2018-05-01')
+    parser.add_argument('-d', '--mindate', help="During download/update phase, ignore serverside maps older than the given date. Currently accepts only ISO 8601 format, for example 2018-10-23.", default='2018-10-01')
     parser.add_argument('-s', '--minsize', help="During download/update phase, ignore serverside maps with size smaller than the given size. Example: mapmanager --minsize 10M", default='10M')
     parser.add_argument('-m', '--maps', help="Path to the maps/ directory. If not given, MapManager will try to find Garry's Mod automatically.")
     parser.add_argument('operations', help="A list of operations to perform. Possible choices are: all, update, clean_orphans, clean_compressed. Default: all", default=['all'] ,nargs='*') #Extract intentionally not mentioned; see comment on extract_all()
@@ -166,11 +166,12 @@ def main():
     mindate = read_date(args.mindate)
     url = args.url
     op_names = args.operations
-    mapsdir = args.maps if args.maps else find_gmod()
+    mapsdir = args.maps if args.maps else os.path.join(find_gmod(), "garrysmod/download/maps/")
     op_all = op_names == ['all']
 
     local_mapinfo = get_local(mapsdir)
     remote_mapinfo = get_remote(url)
+    print(sorted(remote_mapinfo, key=operator.attrgetter('modified')))
     by_ext = list_extensions(local_mapinfo)
 
     def upgradeall(): #TODO: We should be consistent about calling it 'update' or 'upgrade'. Upgrade seems better from package-management point of view but I'm not sure if it fits in this context.
@@ -190,3 +191,6 @@ def main():
     active = accum_actions(operations) #TODO: Make sure file removal doesn't interfere with later operations. Currently local_mapinfo is not updated after file removal.
     if not active:
         print("Nothing to do!")
+
+if __name__ == "__main__":
+    main()

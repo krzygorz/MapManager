@@ -1,0 +1,1 @@
+pyinstaller -F .\mapmanager\exe_main.py -n mapmanager

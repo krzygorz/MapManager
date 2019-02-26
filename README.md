@@ -29,7 +29,8 @@ optional arguments:
   -u URL, --url URL     The url of the server's maps directory
   -d MINDATE, --mindate MINDATE
                         During download/update phase, ignore serverside maps
-                        older than the given date.
+                        older than the given date. Currently accepts only ISO
+                        8601 format, for example 2018-10-23.
   -s MINSIZE, --minsize MINSIZE
                         During download/update phase, ignore serverside maps
                         with size smaller than the given size. Example:
