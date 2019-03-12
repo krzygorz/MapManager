@@ -25,74 +25,52 @@ def truncate(s, n):
     else:
         return s[:n-3]+"..."
 
+def map_summary(m, version_string=None, max_name_len=30):
+    mapname = truncate(m.mapname, max_name_len)
+    fmt_args = {
+        'name': mapname,
+        'max': max_name_len+2,
+        'v': version_string or m.version or "???",
+        's': mb_fmt(m.size),
+        'd': date_fmt(m.modified)
+    }
+    return "{name: <{max}} {v: <10} {d: <10} ({s})".format(**fmt_args)
+
 def upgrade_sumary(upgrades):
     print("Available upgrades:")
-    max_name_len = 30
-    fmt_exists = "{name: <{max}} {v: <10} {d: <10} ({s})"
-    fmt_new    = "{name: <{max}} {v: <10} {d: <10} ({s}) NEW"
     
     for u in upgrades:
         old = u.old
         new = u.new
-        mapname = truncate(new.mapname, max_name_len)
-        v_old = old.version if old and old.version else "???"
-        v_new = new.version if new.version else "???"
 
-        date_new = date_fmt(u.new.modified)
+        v_old = old.version if old and old.version else "???"
+        v_new = new.version or "???"
+        
+        v = "{} -> {}".format(v_old, v_new) if old else None
+        summary = map_summary(new, version_string=v)
         if old:
-            print(fmt_exists.format(name = mapname,
-                                    max  = max_name_len+2,
-                                    v    = "{} -> {}".format(v_old, v_new),
-                                    s   = mb_fmt(new.size),
-                                    d   = date_new))
-        else:
-            print(fmt_new.format(name = mapname,
-                                 max  = max_name_len+2,
-                                 v   = v_new,
-                                 s   = mb_fmt(new.size),
-                                 d   = date_new))
+            summary += " NEW"
+        
+        print(summary)
     print()
     print("total download size: ", mb_fmt(sum([u.new.size for u in upgrades])))
 
-def orphans_summary(orphans):
-    print("Found orphaned maps:")
-    max_name_len = 30
-    fmt = "{name: <{max}} {v: <10} {d: <10} ({s})"
-    for o in orphans:
-        mapname = truncate(o.mapname, max_name_len)
-        print(fmt.format(name = mapname,
-                        max  = max_name_len+2,
-                        v    = o.version if o.version else "???",
-                        s   = mb_fmt(o.size),
-                        d   = date_fmt(o.modified)))
+def generic_removal(maps, prompt, total_prefix="total freed up space: "):
+    print(prompt)
+    for m in maps:
+        print(map_summary(m))
     print()
-    print("total freed up space: ", mb_fmt(sum([u.size for u in orphans])))
+    print(total_prefix, mb_fmt(sum([u.size for u in maps])))
 
-def redundant_bz2s_summary(redundant):# TODO: make a generic function for those, maybe even integrate with forall_prompt
-    print("Found redundant .bz2 files!")
-    max_name_len = 30
-    fmt = "{name: <{max}} {v: <10} {d: <10} ({s})"
-    for o in redundant:
-        mapname = truncate(o.mapname, max_name_len)
-        print(fmt.format(name = mapname,
-                        max  = max_name_len+2,
-                        v    = o.version if o.version else "???",
-                        s   = mb_fmt(o.size),
-                        d   = date_fmt(o.modified)))
-    print()
-    print("total freed up space: ", mb_fmt(sum([u.size for u in redundant])))
+def orphans_summary(orphans):
+    generic_removal(orphans, "Found orphaned maps:")
+def redundant_bz2s_summary(redundant):
+    generic_removal(redundant, "Found redundant .bz2 files:")
 
 def unextracted_summary(unextracted):
     print("Found unextracted .bz2 files!")
-    max_name_len = 30
-    fmt = "{name: <{max}} {v: <10} {d: <10} ({s})"
-    for o in unextracted:
-        mapname = truncate(o.mapname, max_name_len)
-        print(fmt.format(name = mapname,
-                        max  = max_name_len+2,
-                        v    = o.version if o.version else "???",
-                        s   = mb_fmt(o.size),
-                        d   = date_fmt(o.modified)))
+    for u in unextracted:
+        print(map_summary(u))
 
 def query_yes_no(question, default="yes"):# http://code.activestate.com/recipes/577058/
     """Ask a yes/no question via raw_input() and return their answer.
