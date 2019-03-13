@@ -111,3 +111,6 @@ def list_unextracted(by_ext):
         if '.bsp.bz2' in x and not '.bsp' in x:
             return x['.bsp.bz2']
     return filter_none(map(f,by_ext.values()))
+
+def list_local_outdated(local):
+    return list_orphans(local, newest_versions(local).values())

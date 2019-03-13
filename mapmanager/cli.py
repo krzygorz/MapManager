@@ -11,7 +11,7 @@ import os
 
 from mapmanager.htmllistparse import human2bytes
 from mapmanager.mapfiles import get_local, get_remote, upgrade, remove_map, mb_fmt, extract_file, find_gmod
-from mapmanager.mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted
+from mapmanager.mapinfo import list_orphans, list_outdated, list_upgrades, list_extensions, redundant_bzs, list_unextracted, list_local_outdated
 from functools import reduce, partial
 
 sunrust_url = "http://142.44.142.152/fastdl/garrysmod/maps/" # we don't use urljoin so the trailing slash has to be there!
@@ -55,7 +55,7 @@ def upgrade_sumary(upgrades):
     print()
     print("total download size: ", mb_fmt(sum([u.new.size for u in upgrades])))
 
-def generic_removal(maps, prompt, total_prefix="total freed up space: "):
+def generic_removal_sumary(maps, prompt, total_prefix="total freed up space: "):
     print(prompt)
     for m in maps:
         print(map_summary(m))
@@ -63,9 +63,11 @@ def generic_removal(maps, prompt, total_prefix="total freed up space: "):
     print(total_prefix, mb_fmt(sum([u.size for u in maps])))
 
 def orphans_summary(orphans):
-    generic_removal(orphans, "Found orphaned maps:")
+    generic_removal_sumary(orphans, "Found orphaned maps:")
+def outdated_summary(outdated):
+    generic_removal_sumary(outdated, "Found outdated maps:")
 def redundant_bz2s_summary(redundant):
-    generic_removal(redundant, "Found redundant .bz2 files:")
+    generic_removal_sumary(redundant, "Found redundant .bz2 files:")
 
 def unextracted_summary(unextracted):
     print("Found unextracted .bz2 files!")
@@ -157,13 +159,16 @@ def main():
     def remove_orphans():
         orphans = list_orphans(local_mapinfo, remote_mapinfo)
         return forall_prompt(partial(remove_map, mapsdir=mapsdir), orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.")
+    def remove_outdated():
+        outdated = list_local_outdated(local_mapinfo)
+        return forall_prompt(partial(remove_map, mapsdir=mapsdir), outdated, outdated_summary, "Remove all outdated maps?", "No maps deleted.")
     def remove_redundant_bz2s():
         redundant = redundant_bzs(by_ext)
         return forall_prompt(partial(remove_map,mapsdir=mapsdir), redundant, redundant_bz2s_summary, "Remove all redundant files?", "No .bz2 files deleted.")
     def extract_all(): #I wouldn't worry about this one too much since it shouldn't ever be triggered in normal circumstances. Mostly for internal use (cleaning up the mess from previous, bad, implementations of the upgrade downloader)
         unextracted = list_unextracted(by_ext)
         return forall_prompt(partial(extract_file,mapsdir=mapsdir), unextracted, unextracted_summary, "Extract all?", "No files extracted.")
-    op_lookup = {'upgrade': upgradeall, 'clean_orphans': remove_orphans, 'clean_compressed': remove_redundant_bz2s, 'extract': extract_all}
+    op_lookup = {'upgrade': upgradeall, 'clean_orphans': remove_orphans, 'clean_compressed': remove_redundant_bz2s, 'extract': extract_all, 'clean_outdated': remove_outdated}
     operations = [upgradeall,remove_orphans,remove_redundant_bz2s] if op_all else [op_lookup[x] for x in op_names]
     active = accum_actions(operations) #TODO: Make sure file removal doesn't interfere with later operations. Currently local_mapinfo is not updated after file removal.
     if not active:
