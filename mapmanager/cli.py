@@ -133,11 +133,11 @@ def read_date(x):
 
 def parse_args(): #TODO: use docopt?
     parser = argparse.ArgumentParser(description="Sync the downloads/maps/ directory with a server's listing")
-    parser.add_argument('-u', '--url', help="The url of the server's maps directory", default=sunrust_url) #TODO: remove defaults, move to 'launcher' .sh and .bat files
+    parser.add_argument('-u', '--url', help="The url of the server's maps directory", default=sunrust_url)
     parser.add_argument('-d', '--mindate', help="During download/update phase, ignore serverside maps older than the given date. Currently accepts only ISO 8601 format, for example 2018-10-23.", default='2018-10-01')
     parser.add_argument('-s', '--minsize', help="During download/update phase, ignore serverside maps with size smaller than the given size. Example: mapmanager --minsize 10M", default='10M')
     parser.add_argument('-m', '--maps', help="Path to the maps/ directory. If not given, MapManager will try to find Garry's Mod automatically.")
-    parser.add_argument('operations', help="A list of operations to perform. Possible choices are: all, update, clean_orphans, clean_compressed. Default: all", default=['all'] ,nargs='*') #Extract intentionally not mentioned; see comment on extract_all()
+    parser.add_argument('operations', help="A list of operations to perform. Possible choices are: all, update, clean_orphans, clean_compressed, clean_outdated. Default: all", default=['all'] ,nargs='*') #Extract intentionally not mentioned; see comment on extract_all()
     return parser.parse_args()
 
 def main(extra_args=None):
