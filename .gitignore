@@ -3,6 +3,7 @@ fake-mapdir/
 .vscode/
 
 mapmanager.spec
+config.cfg
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
