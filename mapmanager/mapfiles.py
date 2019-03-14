@@ -44,7 +44,7 @@ def find_gmod():
         if key in library_folders:
             path = library_folders[key]
             if has_gmod(path):
-                return path
+                return os.path.join(path, gmoddir)
         else:
             return []
 
