@@ -38,7 +38,7 @@ optional arguments:
 ```
 
 ## Configuration
-If you don't want to create a shell script that calls mapmanager with some arguments, you can use the config file. It has to be placed in the same directory as exe (or in the pwd of shell you're launching mapmanager from) and called `config.cfg`. Currently it is only used to specify arguments to added on start, for example:
+If you don't want to create a shell script that calls mapmanager with some arguments, you can use the config file. It has to be placed in the same directory as exe (or in the pwd of shell you're launching mapmanager from) and called `config.cfg`. Currently it is only used to specify arguments to be added on start, for example:
 ```
 [args]
 maps=<path to gmod>/garrysmod/downloads/maps
