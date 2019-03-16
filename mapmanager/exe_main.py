@@ -10,7 +10,7 @@ try:
     cfg.read('config.cfg')
     args = dict(cfg.items('args'))
 except NoSectionError:
-    args = None
+    args = {}
     
 try:
     cli.main(args)
