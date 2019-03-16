@@ -36,7 +36,7 @@ def map_summary(m, version_string=None, max_name_len=30):
     }
     return "{name: <{max}} {v: <10} {d: <10} ({s})".format(**fmt_args)
 
-def upgrade_sumary(upgrades):
+def upgrade_summary(upgrades):
     print("Available upgrades:")
     
     for u in upgrades:
@@ -55,7 +55,7 @@ def upgrade_sumary(upgrades):
     print()
     print("total download size: ", mb_fmt(sum([u.new.size for u in upgrades])))
 
-def generic_removal_sumary(maps, prompt, total_prefix="total freed up space: "):
+def generic_removal_summary(maps, prompt, total_prefix="total freed up space: "):
     print(prompt)
     for m in maps:
         print(map_summary(m))
@@ -63,11 +63,11 @@ def generic_removal_sumary(maps, prompt, total_prefix="total freed up space: "):
     print(total_prefix, mb_fmt(sum([u.size for u in maps])))
 
 def orphans_summary(orphans):
-    generic_removal_sumary(orphans, "Found orphaned maps:")
+    generic_removal_summary(orphans, "Found orphaned maps:")
 def outdated_summary(outdated):
-    generic_removal_sumary(outdated, "Found outdated maps:")
+    generic_removal_summary(outdated, "Found outdated maps:")
 def redundant_bz2s_summary(redundant):
-    generic_removal_sumary(redundant, "Found redundant .bz2 files:")
+    generic_removal_summary(redundant, "Found redundant .bz2 files:")
 
 def unextracted_summary(unextracted):
     print("Found unextracted .bz2 files!")
@@ -158,7 +158,7 @@ def main(config={}):
 
     def upgradeall(): #TODO: We should be consistent about calling it 'update' or 'upgrade'. Upgrade seems better from package-management point of view but I'm not sure if it fits in this context.
         upgrades = list_upgrades(local_mapinfo, remote_mapinfo, mindate, minsize)
-        return forall_prompt(partial(upgrade, url=url, mapsdir=mapsdir), upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!")
+        return forall_prompt(partial(upgrade, url=url, mapsdir=mapsdir), upgrades, upgrade_summary, "Continue upgrade?", "Upgrade canceled!")
     def remove_orphans():
         orphans = list_orphans(local_mapinfo, remote_mapinfo)
         return forall_prompt(partial(remove_map, mapsdir=mapsdir), orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.")
