@@ -171,9 +171,11 @@ def main(config={}):
     def extract_all(): #I wouldn't worry about this one too much since it shouldn't ever be triggered in normal circumstances. Mostly for internal use (cleaning up the mess from previous, bad, implementations of the upgrade downloader)
         unextracted = list_unextracted(by_ext)
         return forall_prompt(partial(extract_file,mapsdir=mapsdir), unextracted, unextracted_summary, "Extract all?", "No files extracted.")
+    
     op_lookup = {'update': upgradeall, 'clean_orphans': remove_orphans, 'clean_compressed': remove_redundant_bz2s, 'extract': extract_all, 'clean_outdated': remove_outdated}
     operations = [op_lookup[x] for x in op_names]
     active = accum_actions(operations) #TODO: Make sure file removal doesn't interfere with later operations. Currently local_mapinfo is not updated after file removal.
+    #Also, currently mapmanager has to be run twice to remove old versions of just downloaded maps
     if not active:
         print("Nothing to do!")
 
