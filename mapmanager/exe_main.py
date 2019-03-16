@@ -20,5 +20,5 @@ try:
     cli.main(args)
 except Exception:
     traceback.print_exc()
-print("Press any key to close mapmanager...")
+print("Press return to close mapmanager...")
 input()

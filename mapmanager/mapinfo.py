@@ -35,8 +35,12 @@ class MapInfo:
 def weak_eq_mapinfo(a,b):
     return a.mapname == b.mapname and a.version == b.version
 
-# examples                   zs_18       _v2b           _2018           _2018_a2                _a2_3
-versionformat = re.compile("(?<!zs)_(?:v?[0-9]+[a-z]?|(?:20[0-9]{2})(?:_[a-z][0-9])?|(?:[a-z][0-9])(?:_[0-9])?)$") #TODO: this REALLY needs to go
+# examples                   zs_18       _v2b           _2018           _2018_a2                _a2_3         _v1_5fix  _v1_4fix3
+versionformat = re.compile("(?<!zs)_(?:v?[0-9]+[a-z]?|(?:20[0-9]{2})(?:_[a-z][0-9])?|(?:[a-z][0-9])(?:_[0-9])?)(?:_?fix[0-9]*)?$")
+# TODO: this regex REALLY needs to go
+# Versions should be extracted with a function that splits a filename to map name and a version object.
+# Ideally, the version class should support comparison.
+
 def parse_version(mapname):
     version_match = re.search(versionformat, mapname)
     if not version_match:
@@ -46,6 +50,10 @@ def parse_version(mapname):
         mapname_pure = mapname[:version_pos]
         version = mapname[version_pos+1:] # +1 to remove the underscore
         return (mapname_pure, version)
+# TODO: implement case insensitive name comparison while still writing proper file names (mostly for extraction).
+# Solution 1 (preferred): add a filename field to the mapinfo class.
+# Solution 2: case-insensitive dict class
+# Solution 3: make a string class with case-insensitive hashing
 
 def bestversion(xs):# TODO: compare by version?
     """Return the MapInfo with newer version (modification date)."""
