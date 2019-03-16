@@ -137,5 +137,5 @@ def get_local(mapsdir):
     local_mapinfo = [read_local_mapinfo(f, mapsdir) for f in localfiles]
     return [x for x in local_mapinfo if x and is_zs_map(x)]# filter out non-zs maps and Nones from non-bsp files
 def get_remote(url):
-    _, listing = fetch_listing(url, timeout=30)
+    _, listing = fetch_listing(url, timeout=30) #TODO: use HTTP content-length to determine size accurately
     return [parse_remote_mapinfo(l) for l in listing]
