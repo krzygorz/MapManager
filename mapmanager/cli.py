@@ -132,24 +132,25 @@ def read_date(x):
     return datetime.datetime.fromisoformat(x).timestamp()# TODO: Is this the proper way to do it? Same with reading dates from server listing.
 
 def parse_args(): #TODO: use docopt?
-    parser = argparse.ArgumentParser(description="Sync the downloads/maps/ directory with a server's listing")
+    parser = argparse.ArgumentParser(description="Sync the downloads/maps/ directory with a server's listing",
+                                     usage="mapmanager [-h] [-u URL] [-d MINDATE] [-s MINSIZE] [-m MAPS] [operations ...]")
     parser.add_argument('-u', '--url', help="The url of the server's maps directory", default=sunrust_url)
     parser.add_argument('-d', '--mindate', help="During download/update phase, ignore serverside maps older than the given date. Currently accepts only ISO 8601 format, for example 2018-10-23.", default='2018-10-01')
     parser.add_argument('-s', '--minsize', help="During download/update phase, ignore serverside maps with size smaller than the given size. Example: mapmanager --minsize 10M", default='10M')
     parser.add_argument('-m', '--maps', help="Path to the maps/ directory. If not given, MapManager will try to find Garry's Mod automatically.")
-    parser.add_argument('operations', help="A list of operations to perform. Possible choices are: all, update, clean_orphans, clean_compressed, clean_outdated. Default: all", default=['all'] ,nargs='*') #Extract intentionally not mentioned; see comment on extract_all()
+    parser.add_argument('operations', help="A list of operations to perform. Possible choices are: update, clean_orphans, clean_compressed, clean_outdated.", default=['update', 'clean_compressed'] ,nargs='*') #Extract intentionally not mentioned; see comment on extract_all()
     return parser.parse_args()
 
 def main(config={}):
     args = vars(parse_args())
     args.update(config)
-    #print(args)
+    
     minsize = human2bytes(args['minsize']) #TODO: Shouldn't this be in parse_args too?!
     mindate = read_date(args['mindate'])
     url = args['url']
     op_names = args['operations']
     mapsdir = args['maps'] or os.path.join(find_gmod(), "garrysmod/download/maps/")
-    op_all = op_names == ['all']
+    print("The maps directory is: "+mapsdir)
 
     local_mapinfo = get_local(mapsdir)
     remote_mapinfo = get_remote(url)
@@ -170,8 +171,8 @@ def main(config={}):
     def extract_all(): #I wouldn't worry about this one too much since it shouldn't ever be triggered in normal circumstances. Mostly for internal use (cleaning up the mess from previous, bad, implementations of the upgrade downloader)
         unextracted = list_unextracted(by_ext)
         return forall_prompt(partial(extract_file,mapsdir=mapsdir), unextracted, unextracted_summary, "Extract all?", "No files extracted.")
-    op_lookup = {'upgrade': upgradeall, 'clean_orphans': remove_orphans, 'clean_compressed': remove_redundant_bz2s, 'extract': extract_all, 'clean_outdated': remove_outdated}
-    operations = [upgradeall,remove_orphans,remove_redundant_bz2s] if op_all else [op_lookup[x] for x in op_names]
+    op_lookup = {'update': upgradeall, 'clean_orphans': remove_orphans, 'clean_compressed': remove_redundant_bz2s, 'extract': extract_all, 'clean_outdated': remove_outdated}
+    operations = [op_lookup[x] for x in op_names]
     active = accum_actions(operations) #TODO: Make sure file removal doesn't interfere with later operations. Currently local_mapinfo is not updated after file removal.
     if not active:
         print("Nothing to do!")
