@@ -14,15 +14,13 @@ pip install --user -e .
 ```
 ## Usage
 ```
-usage: mapmanager [-h] [-u URL] [-d MINDATE] [-s MINSIZE] [-m MAPS]
-                  [operations [operations ...]]
+usage: mapmanager [-h] [-u URL] [-d MINDATE] [-s MINSIZE] [-m MAPS] [operations ...]
 
 Sync the downloads/maps/ directory with a server's listing
 
 positional arguments:
   operations            A list of operations to perform. Possible choices are:
-                        all, update, clean_orphans, clean_compressed. Default:
-                        all
+                        update, clean_orphans, clean_compressed, clean_outdated.
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -38,10 +36,16 @@ optional arguments:
   -m MAPS, --maps MAPS  Path to the maps/ directory. If not given, MapManager
                         will try to find Garry's Mod automatically.
 ```
+## Configuration
+If you don't want to create a shell script that calls mapmanager with some arguments, you can use the config file. It has to be placed in the same directory as exe (or in the pwd of shell you're launching mapmanager from) and called `config.cfg`. Currently it is only used to specify arguments to added on start, for example:
+```
+[args]
+maps=fake-mapdir
+minsize = 50M
+```
+
 ## Todo
-* Currently the code is optimised for the Sunrust ZS server. It should be easy to generalize it to other fastdl servers but they could use different naming conventions etc...
+* Currently the code is optimised for the Sunrust ZS server. It might remove other server's maps but it should be possible to add support to any server that has a public listing of its maps
 * Proper exception handling.
 * Allow the user to choose to use parsed version strings to compare version.
-* Add an option to remove all the old versions of maps, even if they are still on the server.
-* An easy way to launch it for those who fear commandline.
 * Rewrite the entire thing to Haskell because why not

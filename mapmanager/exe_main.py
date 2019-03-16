@@ -4,7 +4,7 @@ from mapmanager import cli
 
 from configparser import ConfigParser, NoSectionError
 
-cfg = ConfigParser()
+cfg = ConfigParser() #TODO: move this to cli.py
 
 try:
     cfg.read('config.cfg')
