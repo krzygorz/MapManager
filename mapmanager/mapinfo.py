@@ -36,7 +36,7 @@ def weak_eq_mapinfo(a,b):
     return a.mapname == b.mapname and a.version == b.version
 
 # examples                   zs_18       _v2b           _2018           _2018_a2                _a2_3
-versionformat = re.compile("(?<!zs)_(?:v?[0-9]+[a-z]?|(?:20[0-9]{2})(?:_[a-z][0-9])?|(?:[a-z][0-9])(?:_[0-9])?)$") #big suffer
+versionformat = re.compile("(?<!zs)_(?:v?[0-9]+[a-z]?|(?:20[0-9]{2})(?:_[a-z][0-9])?|(?:[a-z][0-9])(?:_[0-9])?)$") #TODO: this REALLY needs to go
 def parse_version(mapname):
     version_match = re.search(versionformat, mapname)
     if not version_match:

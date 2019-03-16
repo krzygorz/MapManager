@@ -140,16 +140,15 @@ def parse_args(): #TODO: use docopt?
     parser.add_argument('operations', help="A list of operations to perform. Possible choices are: all, update, clean_orphans, clean_compressed, clean_outdated. Default: all", default=['all'] ,nargs='*') #Extract intentionally not mentioned; see comment on extract_all()
     return parser.parse_args()
 
-def main(extra_args=None):
+def main(config={}):
     args = vars(parse_args())
-    if extra_args:
-        args.update(extra_args)
+    args.update(config)
     #print(args)
     minsize = human2bytes(args['minsize']) #TODO: Shouldn't this be in parse_args too?!
     mindate = read_date(args['mindate'])
     url = args['url']
     op_names = args['operations']
-    mapsdir = args.get('args',os.path.join(find_gmod(), "garrysmod/download/maps/"))
+    mapsdir = args['maps'] or os.path.join(find_gmod(), "garrysmod/download/maps/")
     op_all = op_names == ['all']
 
     local_mapinfo = get_local(mapsdir)
