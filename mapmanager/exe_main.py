@@ -4,17 +4,6 @@ from mapmanager import cli
 
 from configparser import ConfigParser, NoSectionError
 
-<<<<<<< HEAD
-cfg = ConfigParser() #TODO: move this to cli.py
-
-try:
-    cfg.read('config.cfg')
-    args = dict(cfg.items('args'))
-except NoSectionError:
-    args = {}
-
-=======
->>>>>>> a06cf8b33481c9562ade4a1793a6edf1a1c7f4bc
 try:
     cfg = ConfigParser() #TODO: move this to cli.py
     #TODO: JSON might be a better choice
