@@ -131,6 +131,24 @@ def accum_actions(actions):
 def read_date(x):
     return datetime.datetime.fromisoformat(x).timestamp()# TODO: Is this the proper way to do it? Same with reading dates from server listing.
 
+def make_reporter(name):
+    return partial(Reporter, name)
+class Reporter:
+    def __init__(self, name, total_size):
+        self.total_size = total_size
+        self.time_start = time.time()
+        self.name = name
+    def report(self, bytes_so_far):
+        elapsed = time.time()-self.time_start
+        if elapsed != 0:
+            speed = bytes_so_far/elapsed
+        else:
+            speed = 1 #this should prevent division by zero
+
+        percent = 100 * bytes_so_far / self.total_size
+        sys.stdout.write("{} - Downloaded {}b of {}b ({:0.2f}%)   avg speed: {:0.2f} Kb/s   ETA: {}s       \r".format(self.name, mb_fmt(bytes_so_far), mb_fmt(self.total_size), percent, speed/1024, round(self.total_size/speed-elapsed)))
+
+
 def parse_args(): #TODO: use docopt?
     parser = argparse.ArgumentParser(description="Sync the downloads/maps/ directory with a server's listing",
                                      usage="mapmanager [-h] [-u URL] [-d MINDATE] [-s MINSIZE] [-m MAPS] [operations ...]")
@@ -158,7 +176,7 @@ def main(config={}):
 
     def upgradeall(): #TODO: We should be consistent about calling it 'update' or 'upgrade'. Upgrade seems better from package-management point of view but I'm not sure if it fits in this context.
         upgrades = list_upgrades(local_mapinfo, remote_mapinfo, mindate, minsize)
-        return forall_prompt(partial(upgrade, url=url, mapsdir=mapsdir), upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!")
+        return forall_prompt(partial(upgrade, url=url, mapsdir=mapsdir, make_reporter=make_reporter), upgrades, upgrade_sumary, "Continue upgrade?", "Upgrade canceled!")
     def remove_orphans():
         orphans = list_orphans(local_mapinfo, remote_mapinfo)
         return forall_prompt(partial(remove_map, mapsdir=mapsdir), orphans, orphans_summary, "Remove all orphan maps?", "No orphans deleted.")

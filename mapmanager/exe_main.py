@@ -11,7 +11,7 @@ try:
     args = dict(cfg.items('args'))
 except NoSectionError:
     args = {}
-    
+
 try:
     cli.main(args)
 except Exception:

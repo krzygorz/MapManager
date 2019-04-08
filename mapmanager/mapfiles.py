@@ -11,6 +11,7 @@ import itertools
 from urllib.request import urlopen
 from operator import attrgetter
 from collections import namedtuple, defaultdict
+from functools import partial
 
 from mapmanager.htmllistparse import fetch_listing
 from mapmanager.keyvalues import KeyValues
@@ -64,7 +65,7 @@ def mb_fmt(x):
 def read_local_mapinfo(filename, mapsdir):
     """Make a MapInfo based on file metadata. filename is relative to the maps directory."""
     rawname, ext = split_extension(filename)
-    if not rawname: 
+    if not rawname:
         return None
 
     mapname, version = parse_version(rawname)
@@ -75,36 +76,31 @@ def read_local_mapinfo(filename, mapsdir):
 def parse_remote_mapinfo(entry):
     """Make a MapInfo based on FileEntry metadata."""
     rawname, ext = split_extension(entry.name)
-    if not rawname: 
+    if not rawname:
         return None
     
     mapname, version = parse_version(rawname)
     mtime = time.mktime(entry.modified)
     return MapInfo(mapname, version, mtime, entry.size, ext)
 
-def download(url, name, chunk_size=4096):  #adapted from https://stackoverflow.com/a/2030027
-    """Download data from the url to a temporary file and returns the file object. Also takes a name to be used for reporting download progress."""
+def download(url, reporter_class, chunk_size=4096):  #adapted from https://stackoverflow.com/a/2030027
+    """Download data from the url to a temporary file and returns the file object. Also takes a reporter object to use to display progress."""
     with urlopen(url) as response: #TODO: Error handling!
         total_size = response.getheader('Content-Length').strip()
         total_size = int(total_size)
+        reporter = reporter_class(total_size)
         bytes_so_far = 0
-        time_start = time.time()
         tmp = tempfile.TemporaryFile()
 
         while True: #TODO: Use iterators?
             chunk = response.read(chunk_size)
-            bytes_so_far += len(chunk)
-            elapsed = time.time()-time_start
-            speed = bytes_so_far/elapsed
-
             if not chunk:
                 break
+            bytes_so_far += len(chunk)
+            reporter.report(bytes_so_far)
 
             tmp.write(chunk)
 
-            percent = float(bytes_so_far) / total_size #TODO: move all the cli stuff into cli.py
-            percent = round(percent*100, 2) #TODO: and fix the division by zero!!!
-            sys.stdout.write("{} - Downloaded {}b of {}b ({:0.2f}%)   avg speed: {:0.2f} Kb/s   ETA: {}s       \r".format(name, mb_fmt(bytes_so_far), mb_fmt(total_size), percent, speed/1024, round(total_size/speed-elapsed)))
     sys.stdout.write('\n')
     return tmp
 
@@ -120,10 +116,10 @@ def extract_to(f, path):
             data = decompressor.decompress(chunk)
             f_out.write(data)
 
-def upgrade(u, url, mapsdir): #TODO: all the operations that need url or mapsdir should probably be methods of a new class
+def upgrade(u, url, mapsdir, make_reporter): #TODO: all the operations that need url or mapsdir should probably be methods of a new class
     """downloads an upgrade and writes it to disk."""
     filename = u.new.filename(False)
-    tmp = download(url+filename+'.bsp.bz2', u.new.mapname)
+    tmp = download(url+filename+'.bsp.bz2', make_reporter(u.new.mapname))
     print("decompressing...")
     extract_to(tmp, os.path.join(mapsdir,filename+'.bsp')) #Assumption: server gives us only compressed maps
 
