@@ -139,6 +139,8 @@ class Reporter:
         self.time_start = time.time()
         self.name = name
         self.fmt = "{name} - Downloaded {so_far}b of {total}b ({percent:5.2f}%)   avg speed: {speed:0.2f} Kb/s   ETA: {eta}s       \r"
+        self.average_speed = 2000 * 1024 # 2 MB/s start speed
+        self.smoothing_factor = 0.7
     def report(self, bytes_so_far):
         elapsed = time.time()-self.time_start
         if elapsed != 0:
@@ -146,14 +148,16 @@ class Reporter:
         else:
             speed = 1 #this should prevent division by zero
 
+        self.average_speed = self.smoothing_factor * speed + (1-self.smoothing_factor) * self.average_speed; #https://stackoverflow.com/a/3841706
+
         percent = 100 * bytes_so_far / self.total_size
-        eta = self.total_size/speed - elapsed
+        eta = self.total_size/self.average_speed - elapsed
         fmt_args = {
             'name': self.name,
             'so_far': mb_fmt(bytes_so_far),
             'total': mb_fmt(self.total_size),
             'percent': percent,
-            'speed': speed/1024,
+            'speed': self.average_speed/1024,
             'eta': round(eta)
         }
         sys.stdout.write(self.fmt.format(**fmt_args))
