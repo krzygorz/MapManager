@@ -138,6 +138,7 @@ class Reporter:
         self.total_size = total_size
         self.time_start = time.time()
         self.name = name
+        self.fmt = "{name} - Downloaded {so_far}b of {total}b ({percent:5.2f}%)   avg speed: {speed:0.2f} Kb/s   ETA: {eta}s       \r"
     def report(self, bytes_so_far):
         elapsed = time.time()-self.time_start
         if elapsed != 0:
@@ -146,7 +147,16 @@ class Reporter:
             speed = 1 #this should prevent division by zero
 
         percent = 100 * bytes_so_far / self.total_size
-        sys.stdout.write("{} - Downloaded {}b of {}b ({:0.2f}%)   avg speed: {:0.2f} Kb/s   ETA: {}s       \r".format(self.name, mb_fmt(bytes_so_far), mb_fmt(self.total_size), percent, speed/1024, round(self.total_size/speed-elapsed)))
+        eta = self.total_size/speed - elapsed
+        fmt_args = {
+            'name': self.name,
+            'so_far': mb_fmt(bytes_so_far),
+            'total': mb_fmt(self.total_size),
+            'percent': percent,
+            'speed': speed/1024,
+            'eta': round(eta)
+        }
+        sys.stdout.write(self.fmt.format(**fmt_args))
 
 
 def parse_args(): #TODO: use docopt?
