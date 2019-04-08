@@ -43,12 +43,12 @@ def upgrade_sumary(upgrades):
         old = u.old
         new = u.new
 
-        v_old = old.version if old and old.version else "???"
+        v_old = old.version if old and old.version else "???" #for new maps, u.old is None
         v_new = new.version or "???"
         
         v = "{} -> {}".format(v_old, v_new) if old else None
         summary = map_summary(new, version_string=v)
-        if old:
+        if not old:
             summary += " NEW"
         
         print(summary)
